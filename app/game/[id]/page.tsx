@@ -78,7 +78,7 @@ export default function GamePage() {
     )
 
   if (isGameFinished) {
-    return <GameEndScreen players={session.players} />
+    return <GameEndScreen players={session.players} session={session} />
   }
 
   return (

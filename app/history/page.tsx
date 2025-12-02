@@ -1,13 +1,21 @@
-import { fetchCompletedHistory } from '@/lib/services/history.server'
+'use client'
+
 import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { HistoryCard } from '@/components/history/HistoryCard'
+import { useGameHistory } from '@/lib/queries/historyQueries'
 
-export const dynamic = 'force-dynamic'
+export default function HistoryPage() {
+  const { data: history, isLoading } = useGameHistory()
 
-export default async function HistoryPage() {
-  const history = await fetchCompletedHistory()
+  if (isLoading) {
+    return (
+      <div className="bg-background flex h-screen items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="bg-background min-h-screen space-y-6 p-4 pb-24">
@@ -23,7 +31,7 @@ export default async function HistoryPage() {
       </header>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {history.length === 0 ? (
+        {!history || history.length === 0 ? (
           <div className="text-muted-foreground col-span-full py-12 text-center">
             <p>Aucune partie terminée pour le moment.</p>
           </div>

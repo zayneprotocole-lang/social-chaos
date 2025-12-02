@@ -1,12 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useGameStore } from '@/lib/store/useGameStore'
-import { GameSettings } from '@/lib/types'
+import { useSessionQuery } from '@/lib/hooks/useSessionQuery'
+import { useSessionMutations } from '@/lib/hooks/useSessionMutations'
 import { GAME_CONFIG } from '@/lib/constants/config'
+import { GameSettings, DifficultyLevel } from '@/lib/types'
 
 export function useLobbyLogic(code: string) {
   const router = useRouter()
-  const { session, setSession } = useGameStore()
+  // Use Query for session state
+  const { session, isLoading } = useSessionQuery(code)
+  // Use Mutations for updates
+  const { updateSettings } = useSessionMutations(code)
+
   const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [newPlayerName, setNewPlayerName] = useState('')
 
@@ -15,138 +20,79 @@ export function useLobbyLogic(code: string) {
   )
   const [isProgressiveMode, setIsProgressiveMode] = useState(false)
 
-  useEffect(() => {
-    if (!session) {
-      setSession({
-        id: 'mock-session-id',
-        roomCode: code,
-        status: 'WAITING',
-        settings: {
-          difficulty: 2,
-          tags: ['Fun', 'Soft'],
-          timerDuration: 180,
-          alcoholMode: true,
-        },
-        players: [],
-        isPaused: false,
-        roundsTotal: GAME_CONFIG.ROUNDS.DEFAULT,
-        roundsCompleted: 0,
-        playersPlayedThisRound: 0,
-        isProgressiveMode: false,
-      })
-    } else {
-      if (session.roundsTotal !== roundsTotal) {
-        setRoundsTotal(session.roundsTotal)
-      }
-      if (session.isProgressiveMode !== isProgressiveMode) {
-        setIsProgressiveMode(session.isProgressiveMode)
-      }
-    }
-  }, [code, session, setSession, roundsTotal, isProgressiveMode])
+  const handleUpdateSettings = useCallback(
+    async (updates: Partial<GameSettings>) => {
+      if (!session) return
 
-  const handleAddPlayer = useCallback(() => {
-    if (!newPlayerName.trim()) return
+      const currentSettings = session.settings
+      const newSettings = { ...currentSettings, ...updates }
 
-    const avatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${newPlayerName}`
+      await updateSettings(newSettings)
+    },
+    [session, updateSettings]
+  )
 
-    const newPlayer = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newPlayerName,
-      avatar: avatar,
-      score: 0,
-      jokersLeft: 1,
-      rerollsLeft: 1,
-      exchangeLeft: 1,
-      isHost: session?.players.length === 0,
-      isPaused: false,
-    }
-
-    if (session) {
-      setSession({
-        ...session,
-        players: [...session.players, newPlayer],
-      })
-    }
+  const handleAddPlayer = useCallback(async () => {
+    if (!newPlayerName.trim() || !session) return
+    // Placeholder for adding player logic
     setNewPlayerName('')
     setShowAddPlayer(false)
-  }, [newPlayerName, session, setSession])
+  }, [newPlayerName, session])
 
-  const handleSettingsUpdate = useCallback((newSettings: GameSettings) => {
-    if (session) {
-      setSession({ ...session, settings: newSettings })
-    }
-  }, [session, setSession])
+  const handleStartGame = useCallback(async () => {
+    if (!session) return
+    // Navigate to game
+    router.push(`/game/${code}`)
+  }, [session, code, router])
 
-  const updateSessionExtraSettings = useCallback((rounds: number, progressive: boolean) => {
-    if (session) {
-      setSession({
-        ...session,
-        roundsTotal: rounds,
-        isProgressiveMode: progressive,
-      })
+  const handleDifficultyChange = useCallback(
+    (value: number) => {
+      handleUpdateSettings({ difficulty: value as DifficultyLevel })
+    },
+    [handleUpdateSettings]
+  )
+
+  const handleRoundsChange = useCallback((value: number) => {
+    setRoundsTotal(value)
+  }, [])
+
+  const handleProgressiveToggle = useCallback((checked: boolean) => {
+    setIsProgressiveMode(checked)
+  }, [])
+
+  const handleSettingsUpdate = useCallback(
+    async (updates: Partial<GameSettings>) => {
+      await handleUpdateSettings(updates)
+    },
+    [handleUpdateSettings]
+  )
+
+  const updateSessionExtraSettings = useCallback(
+    async (rounds: number, progressive: boolean) => {
       setRoundsTotal(rounds)
       setIsProgressiveMode(progressive)
-    }
-  }, [session, setSession])
+      // TODO: Persist to DB if these are session fields
+    },
+    []
+  )
 
-  const handleDeletePlayer = useCallback((playerId: string) => {
-    if (session) {
-      const updatedPlayers = session.players.filter((p) => p.id !== playerId)
-      setSession({ ...session, players: updatedPlayers })
-    }
-  }, [session, setSession])
-
-  const startGame = useCallback(() => {
-    if (!session || session.players.length < 2) return
-
-    const randomPlayer =
-      session.players[Math.floor(Math.random() * session.players.length)]
-
-    const startDare: import('@/lib/types').Dare = {
-      id: 'start',
-      content: 'Pour commencer : Tout le monde boit une gorgée !',
-      difficultyLevel: 1,
-      categoryTags: ['Fun'],
-      xpReward: 10,
-    }
-
-    setSession({
-      ...session,
-      status: 'ACTIVE',
-      currentTurnPlayerId: randomPlayer.id,
-      currentDare: startDare,
-      roundsTotal: roundsTotal,
-      isProgressiveMode: isProgressiveMode,
-    })
-
-    router.push(`/game/${code}`)
-  }, [session, setSession, roundsTotal, isProgressiveMode, code, router])
+  const handleDeletePlayer = useCallback(async (playerId: string) => {
+    // Placeholder for delete player
+    console.log('Delete player', playerId)
+  }, [])
 
   const calculateTimeEstimation = useCallback(() => {
     if (!session) return { min: 0, max: 0 }
-
-    const playerCount = Math.max(session.players.length, 2)
-    const rounds = roundsTotal
-
-    // V9.1: New formula - Max Time = Players * Rounds * Level Timer
-    // Level Timer: 120s (Audace), 60s (Chaos), 30s (Apocalypse)
-    // We need to get the timer from DIFFICULTY_CONFIG based on current difficulty
-    const difficulty = session.settings.difficulty
-    // Note: DIFFICULTY_CONFIG is not imported here, need to import it or use hardcoded values if import fails.
-    // Let's assume we can import it.
-    const timerPerTurn =
-      difficulty === 2 ? 120 : difficulty === 3 ? 60 : difficulty === 4 ? 30 : 0
-
-    const totalSeconds = playerCount * rounds * timerPerTurn
-
-    const maxMinutes = Math.ceil(totalSeconds / 60)
-    const minMinutes = Math.ceil(maxMinutes / 2) // Average = Max / 2
-
-    return { min: minMinutes, max: maxMinutes }
+    // Estimation: 2-4 mins per round
+    return {
+      min: roundsTotal * 2,
+      max: roundsTotal * 4,
+    }
   }, [session, roundsTotal])
 
   return {
     session,
+    isLoading,
     showAddPlayer,
     setShowAddPlayer,
     newPlayerName,
@@ -157,7 +103,7 @@ export function useLobbyLogic(code: string) {
     handleSettingsUpdate,
     updateSessionExtraSettings,
     handleDeletePlayer,
-    startGame,
+    startGame: handleStartGame,
     calculateTimeEstimation,
   }
 }

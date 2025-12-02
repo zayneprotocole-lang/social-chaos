@@ -113,12 +113,12 @@ export function HistoryCard({ game }: HistoryCardProps) {
             />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2 space-y-1">
-            {isLoading && (!players || players.length === 0) ? (
+            {isLoading || !players || players.length === 0 ? (
               <div className="flex justify-center py-2">
                 <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
               </div>
             ) : (
-              players?.map((player: SessionPlayerDocument, index: number) => (
+              players.map((player: SessionPlayerDocument, index: number) => (
                 <div
                   key={player.id || index}
                   className="flex items-center justify-between rounded bg-white/5 px-3 py-2 text-xs"
