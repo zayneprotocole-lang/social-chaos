@@ -1,3 +1,4 @@
+import React from 'react'
 import { GameSession, Player } from '@/lib/types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Users } from 'lucide-react'
@@ -10,7 +11,7 @@ interface PlayerListVerticalProps {
     onPlayerClick: (playerId: string) => void
 }
 
-export default function PlayerListVertical({ session, currentPlayer, isSwapping, onPlayerClick }: PlayerListVerticalProps) {
+const PlayerListVertical = React.memo(({ session, currentPlayer, isSwapping, onPlayerClick }: PlayerListVerticalProps) => {
     return (
         <div className="fixed right-4 top-20 z-40 w-48 max-h-[calc(100vh-120px)] overflow-y-auto">
             <div className="bg-black/60 backdrop-blur-md border border-primary/20 rounded-lg p-3 space-y-2">
@@ -57,4 +58,7 @@ export default function PlayerListVertical({ session, currentPlayer, isSwapping,
             )}
         </div>
     )
-}
+})
+
+PlayerListVertical.displayName = 'PlayerListVertical'
+export default PlayerListVertical

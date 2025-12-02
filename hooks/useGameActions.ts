@@ -1,77 +1,69 @@
-import { useState } from 'react'
-import { useGameStore } from '@/lib/store/useGameStore'
+import { useState, useCallback } from 'react'
 import { Player, Dare } from '@/lib/types'
-import { dataAccess } from '@/lib/services/dataAccess'
+import { useSessionMutations } from '@/lib/hooks/useSessionMutations'
 
 export function useGameActions(
+  sessionId: string | undefined,
   currentPlayer: Player | undefined,
+  currentDare: Dare | undefined,
   MOCK_DARES: Dare[],
   handleNextTurn: () => void
 ) {
-  const { session } = useGameStore()
   const [isSwapping, setIsSwapping] = useState(false)
 
-  const handleJoker = async () => {
-    if (currentPlayer && currentPlayer.jokersLeft > 0 && session) {
-      // Optimistic update or wait for DB?
-      // For better UX, we might want optimistic, but requirements say "Direct updates".
-      // We'll fire the DB call. The listener will update the UI.
-      await dataAccess.decrementPlayerAttribute(
-        session.id,
-        currentPlayer.id,
-        'jokersLeft'
-      )
+  // Always call the hook - hooks must not be conditional
+  const mutations = useSessionMutations(sessionId || '')
+
+  const handleJoker = useCallback(async () => {
+    if (currentPlayer && currentPlayer.jokersLeft > 0 && sessionId) {
+      await mutations.decrementAttribute({
+        playerId: currentPlayer.id,
+        attribute: 'jokersLeft',
+      })
       handleNextTurn()
     }
-  }
+  }, [currentPlayer, sessionId, mutations, handleNextTurn])
 
-  const handleReroll = async () => {
-    if (currentPlayer && currentPlayer.rerollsLeft > 0 && session) {
-      // 1. Decrement reroll
-      await dataAccess.decrementPlayerAttribute(
-        session.id,
-        currentPlayer.id,
-        'rerollsLeft'
-      )
+  const handleReroll = useCallback(async () => {
+    if (currentPlayer && currentPlayer.rerollsLeft > 0 && sessionId) {
+      await mutations.decrementAttribute({
+        playerId: currentPlayer.id,
+        attribute: 'rerollsLeft',
+      })
 
-      // 2. Pick new dare (locally for now, ideally cloud function)
       const randomDare =
         MOCK_DARES[Math.floor(Math.random() * MOCK_DARES.length)]
 
-      // 3. Update game turn with new dare (keeping same player)
-      await dataAccess.updateGameTurn(session.id, {
+      await mutations.updateGameTurn({
         currentTurnPlayerId: currentPlayer.id,
-        currentDare: randomDare,
+        currentDare: randomDare as unknown as Record<string, unknown>,
       })
     }
-  }
+  }, [currentPlayer, sessionId, mutations, MOCK_DARES])
 
-  const handleSwap = () => {
+  const handleSwap = useCallback(() => {
     if (currentPlayer && currentPlayer.exchangeLeft > 0) {
       setIsSwapping(true)
     }
-  }
+  }, [currentPlayer])
 
-  const handlePlayerClick = async (targetPlayerId: string) => {
-    if (isSwapping && currentPlayer && session) {
-      if (targetPlayerId === currentPlayer.id) return // Can't swap with self
+  const handlePlayerClick = useCallback(async (targetPlayerId: string) => {
+    if (isSwapping && currentPlayer && sessionId && currentDare) {
+      if (targetPlayerId === currentPlayer.id) return
 
       setIsSwapping(false)
 
-      // 1. Decrement exchange
-      await dataAccess.decrementPlayerAttribute(
-        session.id,
-        currentPlayer.id,
-        'exchangeLeft'
-      )
+      await mutations.decrementAttribute({
+        playerId: currentPlayer.id,
+        attribute: 'exchangeLeft',
+      })
 
-      // 2. Swap logic: Pass turn to target player
-      await dataAccess.updateGameTurn(session.id, {
+      await mutations.updateGameTurn({
         currentTurnPlayerId: targetPlayerId,
-        currentDare: session.currentDare!, // Keep same dare
+        currentDare: currentDare as unknown as Record<string, unknown>,
       })
     }
-  }
+  }, [isSwapping, currentPlayer, sessionId, currentDare, mutations])
 
   return {
     isSwapping,

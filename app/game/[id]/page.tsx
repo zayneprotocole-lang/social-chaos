@@ -1,15 +1,13 @@
 'use client'
 
 import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import DareCard from '@/components/game/DareCard'
 import GameTimer from '@/components/game/GameTimer'
-import SentencePopup from '@/components/game/SentencePopup'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, Skull } from 'lucide-react'
 import { DIFFICULTY_CONFIG } from '@/lib/constants/config'
 import { cn } from '@/lib/utils'
-import OptionsMenu from '@/components/game/OptionsMenu'
-import GameEndScreen from '@/components/game/GameEndScreen'
 import { useGameSession } from '@/hooks/useGameSession'
 import { useGameFlow } from '@/hooks/useGameFlow'
 import { useGameActions } from '@/hooks/useGameActions'
@@ -19,7 +17,12 @@ import GameProgress from '@/components/game/GameProgress'
 import PlayerListVertical from '@/components/game/PlayerListVertical'
 import TurnIndicator from '@/components/game/TurnIndicator'
 import ActionDock from '@/components/game/ActionDock'
-import AbandonOverlay from '@/components/game/AbandonOverlay'
+
+// Lazy-loaded components (non-critical for initial render)
+const SentencePopup = dynamic(() => import('@/components/game/SentencePopup'))
+const GameEndScreen = dynamic(() => import('@/components/game/GameEndScreen'))
+const OptionsMenu = dynamic(() => import('@/components/game/OptionsMenu'))
+const AbandonOverlay = dynamic(() => import('@/components/game/AbandonOverlay'))
 
 export default function GamePage() {
   const params = useParams()
@@ -45,7 +48,7 @@ export default function GamePage() {
     confirmAbandon,
     cancelAbandon,
     handleSentenceNext,
-  } = useGameFlow(session, MOCK_DARES)
+  } = useGameFlow(session ?? null, MOCK_DARES)
 
   const {
     isSwapping,
@@ -53,7 +56,13 @@ export default function GamePage() {
     handleJoker,
     handleReroll,
     handleSwap,
-  } = useGameActions(currentPlayer, MOCK_DARES, handleNextTurn)
+  } = useGameActions(
+    session?.id,
+    currentPlayer,
+    session?.currentDare,
+    MOCK_DARES,
+    handleNextTurn
+  )
 
   // Determine background based on difficulty (Apocalypse is now Violet)
   const getBackgroundClass = () => {

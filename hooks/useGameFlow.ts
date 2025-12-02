@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useGameStore } from '@/lib/store/useGameStore'
 import { ControlStep } from '@/components/game/Controls'
 import { getPenaltyText } from '@/lib/constants/sentences'
@@ -8,7 +8,7 @@ import { DIFFICULTY_CONFIG } from '@/lib/constants/config'
 import { saveGameCompletion } from '@/lib/actions/historyActions'
 
 export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
-  const {} = useGameStore()
+  const { } = useGameStore()
 
   const [isCardVisible, setIsCardVisible] = useState(false)
   const [gameStatus, setGameStatus] = useState<'IDLE' | 'PLAYING'>('IDLE')
@@ -25,27 +25,6 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
   // Abandon Confirmation State
   const [isAbandonConfirmOpen, setIsAbandonConfirmOpen] = useState(false)
 
-  // Auto-start timer effect
-  useEffect(() => {
-    if (isCardVisible && !isTimerActive && gameStatus === 'PLAYING') {
-      const difficulty = session?.settings.difficulty || 1
-      if (difficulty >= 2 && !isOnGoing) {
-        // Schedule state update via callback
-        const timerId = setTimeout(() => {
-          setIsTimerActive(true)
-          setControlStep('ACTION')
-        }, 0)
-        return () => clearTimeout(timerId)
-      }
-    }
-  }, [
-    isCardVisible,
-    gameStatus,
-    session?.settings.difficulty,
-    isOnGoing,
-    isTimerActive,
-  ])
-
   // Sync Turn State with Session
   useEffect(() => {
     if (!session?.currentTurnPlayerId) return
@@ -53,14 +32,22 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
     // If the turn player changes, or if it's the first load and we have a dare, reset/start the turn
     if (session.currentDare && gameStatus === 'IDLE') {
       // Schedule state updates via callback to avoid setState in effect
+      // We use a small timeout to ensure this runs after the render cycle, 
+      // but ideally this logic should be event-driven. 
+      // Given the constraints, we merge the logic here to avoid the second cascading effect.
       const timerId = setTimeout(() => {
         setIsCardVisible(true)
         setGameStatus('PLAYING')
         setControlStep('START')
         setIsOnGoing(false)
 
-        // If difficulty 1, skip timer
-        if ((session.settings.difficulty || 1) === 1) {
+        const difficulty = session.settings.difficulty || 1
+        // Logic merged from the previous cascading effect:
+        if (difficulty >= 2) {
+          setIsTimerActive(true)
+          setControlStep('ACTION')
+        } else {
+          // Difficulty 1 logic
           setControlStep('ACTION')
           setIsTimerActive(false)
         }
@@ -74,11 +61,8 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
     session?.settings.difficulty,
   ])
 
-  const startTurn = () => {
+  const startTurn = useCallback(() => {
     // Manual start (fallback or for first turn if needed)
-    // In real-time mode, this might trigger the "Next Turn" logic if we are in a "Waiting to Start" state
-    // But currently handleNextTurn does the setup.
-    // If we are IDLE, we just show the card.
     setIsCardVisible(true)
     setGameStatus('PLAYING')
     setControlStep('START')
@@ -89,9 +73,9 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
       setControlStep('ACTION')
       setIsTimerActive(false)
     }
-  }
+  }, [session?.settings.difficulty])
 
-  const openSentencePopup = () => {
+  const openSentencePopup = useCallback(() => {
     if (!session) return
     setIsAbandonConfirmOpen(false) // Close abandon confirm if open (e.g. timer ran out)
     const penalty = getPenaltyText(
@@ -101,14 +85,14 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
     setCurrentPenalty(penalty)
     setIsSentenceOpen(true)
     if (navigator.vibrate) navigator.vibrate([200, 100, 200])
-  }
+  }, [session])
 
-  const handleTimerComplete = () => {
+  const handleTimerComplete = useCallback(() => {
     setIsTimerActive(false)
     openSentencePopup()
-  }
+  }, [openSentencePopup])
 
-  const handleNextTurn = async () => {
+  const handleNextTurn = useCallback(async () => {
     setIsCardVisible(false)
     setGameStatus('IDLE')
     setControlStep('START')
@@ -139,9 +123,6 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
         MOCK_DARES[Math.floor(Math.random() * MOCK_DARES.length)]
 
       // Update Firestore
-      // We need to handle round increment logic here or in dataAccess
-      // For now, let's do it here to keep logic visible
-
       const activePlayersCount = session.players.filter(
         (p) => !p.isPaused
       ).length
@@ -184,9 +165,9 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
         roundsCompleted: roundsCompleted,
       })
     }
-  }
+  }, [session, MOCK_DARES])
 
-  const handleValidateChallenge = async (
+  const handleValidateChallenge = useCallback(async (
     currentPlayerId: string | undefined
   ) => {
     // Award point to current player for completing the challenge
@@ -197,30 +178,28 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
         currentPlayerId,
         (session.players.find((p) => p.id === currentPlayerId)?.score || 0) + 1
       )
-      // Ideally we use increment(1) but the dataAccess method might need update to support it or we just read-modify-write for now
-      // dataAccess.updatePlayerScore takes a number. Let's check if we can improve it later.
     }
     handleNextTurn()
-  }
+  }, [session, handleNextTurn])
 
-  const handleAbandon = () => {
+  const handleAbandon = useCallback(() => {
     setIsTimerActive(false) // Stop the timer
     setIsAbandonConfirmOpen(true)
-  }
+  }, [])
 
-  const confirmAbandon = () => {
+  const confirmAbandon = useCallback(() => {
     setIsAbandonConfirmOpen(false)
     openSentencePopup()
-  }
+  }, [openSentencePopup])
 
-  const cancelAbandon = () => {
+  const cancelAbandon = useCallback(() => {
     setIsAbandonConfirmOpen(false)
-  }
+  }, [])
 
-  const handleSentenceNext = () => {
+  const handleSentenceNext = useCallback(() => {
     setIsSentenceOpen(false)
     handleNextTurn()
-  }
+  }, [handleNextTurn])
 
   return {
     isCardVisible,

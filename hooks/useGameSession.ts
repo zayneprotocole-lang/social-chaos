@@ -1,9 +1,8 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useGameStore } from '@/lib/store/useGameStore'
-import { dataAccess } from '@/lib/services/dataAccess'
-import { mapFirestoreToSession } from '@/lib/utils/firestoreMappers'
-import { Dare, SessionDocument } from '@/lib/types'
+import { Dare } from '@/lib/types'
+import { useSessionQuery } from '@/lib/hooks/useSessionQuery'
+import { ensureAuthenticated } from '@/lib/firebase/auth'
 
 // Mock Dares for demo (moved from page.tsx) - KEEPING THIS FOR NOW as we might need it for fallback or testing
 // In a real scenario, dares should come from the DB too, but the prompt focuses on Session/State logic.
@@ -39,61 +38,17 @@ const MOCK_DARES: Dare[] = [
 ]
 
 export function useGameSession(roomId: string) {
-  const { session, setSession, currentUser, setCurrentUser } = useGameStore()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { currentUser, setCurrentUser } = useGameStore()
 
-  // Subscribe to Session Updates
+  // Ensure anonymous authentication before accessing Firestore
   useEffect(() => {
-    if (!roomId) {
-      setLoading(false)
-      return
-    }
+    ensureAuthenticated().catch((error) => {
+      console.error('Failed to authenticate:', error)
+    })
+  }, [])
 
-    // 1. Subscribe to the Session Document
-    const unsubscribeSession = dataAccess.subscribeToSession(
-      roomId,
-      (updatedSessionDoc) => {
-        if (updatedSessionDoc) {
-          setSession((prevSession) => {
-            // If we already have a session, preserve the players
-            const currentPlayers = prevSession?.players || []
-
-            // Use the mapper to transform Firestore doc to GameSession
-            // We cast updatedSessionDoc to SessionDocument because dataAccess returns it with ID but types might be loose
-            return mapFirestoreToSession(
-              updatedSessionDoc.id,
-              updatedSessionDoc as SessionDocument,
-              currentPlayers
-            )
-          })
-        } else {
-          setError('Session not found')
-        }
-        setLoading(false)
-      }
-    )
-
-    // 2. Subscribe to the Players Subcollection
-    const unsubscribePlayers = dataAccess.subscribeToPlayers(
-      roomId,
-      (updatedPlayers) => {
-        setSession((prevSession) => {
-          if (!prevSession) return null
-
-          return {
-            ...prevSession,
-            players: updatedPlayers,
-          }
-        })
-      }
-    )
-
-    return () => {
-      unsubscribeSession()
-      unsubscribePlayers()
-    }
-  }, [roomId, setSession, setError])
+  // Use the new Query hook
+  const { session, isLoading: loading, error } = useSessionQuery(roomId)
 
   // Update currentUser in store when players change
   useEffect(() => {

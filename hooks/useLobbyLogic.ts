@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/lib/store/useGameStore'
 import { GameSettings } from '@/lib/types'
@@ -45,7 +44,7 @@ export function useLobbyLogic(code: string) {
     }
   }, [code, session, setSession, roundsTotal, isProgressiveMode])
 
-  const handleAddPlayer = () => {
+  const handleAddPlayer = useCallback(() => {
     if (!newPlayerName.trim()) return
 
     const avatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${newPlayerName}`
@@ -70,15 +69,15 @@ export function useLobbyLogic(code: string) {
     }
     setNewPlayerName('')
     setShowAddPlayer(false)
-  }
+  }, [newPlayerName, session, setSession])
 
-  const handleSettingsUpdate = (newSettings: GameSettings) => {
+  const handleSettingsUpdate = useCallback((newSettings: GameSettings) => {
     if (session) {
       setSession({ ...session, settings: newSettings })
     }
-  }
+  }, [session, setSession])
 
-  const updateSessionExtraSettings = (rounds: number, progressive: boolean) => {
+  const updateSessionExtraSettings = useCallback((rounds: number, progressive: boolean) => {
     if (session) {
       setSession({
         ...session,
@@ -88,16 +87,16 @@ export function useLobbyLogic(code: string) {
       setRoundsTotal(rounds)
       setIsProgressiveMode(progressive)
     }
-  }
+  }, [session, setSession])
 
-  const handleDeletePlayer = (playerId: string) => {
+  const handleDeletePlayer = useCallback((playerId: string) => {
     if (session) {
       const updatedPlayers = session.players.filter((p) => p.id !== playerId)
       setSession({ ...session, players: updatedPlayers })
     }
-  }
+  }, [session, setSession])
 
-  const startGame = () => {
+  const startGame = useCallback(() => {
     if (!session || session.players.length < 2) return
 
     const randomPlayer =
@@ -121,9 +120,9 @@ export function useLobbyLogic(code: string) {
     })
 
     router.push(`/game/${code}`)
-  }
+  }, [session, setSession, roundsTotal, isProgressiveMode, code, router])
 
-  const calculateTimeEstimation = () => {
+  const calculateTimeEstimation = useCallback(() => {
     if (!session) return { min: 0, max: 0 }
 
     const playerCount = Math.max(session.players.length, 2)
@@ -144,7 +143,7 @@ export function useLobbyLogic(code: string) {
     const minMinutes = Math.ceil(maxMinutes / 2) // Average = Max / 2
 
     return { min: minMinutes, max: maxMinutes }
-  }
+  }, [session, roundsTotal])
 
   return {
     session,

@@ -1,3 +1,4 @@
+import React from 'react'
 import { GameSession, Player } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Clock, ArrowRight, Dices, RefreshCw, Shuffle } from 'lucide-react'
@@ -16,7 +17,7 @@ interface ActionDockProps {
     onSwap: () => void
 }
 
-export default function ActionDock({
+const ActionDock = React.memo(({
     session,
     currentPlayer,
     isOnGoing,
@@ -26,7 +27,7 @@ export default function ActionDock({
     onJoker,
     onReroll,
     onSwap
-}: ActionDockProps) {
+}: ActionDockProps) => {
     return (
         <div className="flex flex-col gap-4 w-full max-w-sm z-30">
             {/* Action Cards Row */}
@@ -108,4 +109,7 @@ export default function ActionDock({
             </div>
         </div>
     )
-}
+})
+
+ActionDock.displayName = 'ActionDock'
+export default ActionDock

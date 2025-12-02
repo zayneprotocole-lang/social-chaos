@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,7 @@ interface DareCardProps {
     isVisible: boolean
 }
 
-export default function DareCard({ dare, isVisible }: DareCardProps) {
+const DareCard = React.memo(({ dare, isVisible }: DareCardProps) => {
     const [isFavorite, setIsFavorite] = useState(false)
 
     useEffect(() => {
@@ -122,4 +122,7 @@ export default function DareCard({ dare, isVisible }: DareCardProps) {
             </motion.div>
         </div>
     )
-}
+})
+
+DareCard.displayName = 'DareCard'
+export default DareCard
