@@ -84,7 +84,7 @@ export const dataAccess = {
     roundsTotal: number
     isProgressiveMode: boolean
   }) {
-    const sessionRef = doc(collection(db, 'sessions'))
+    const sessionRef = doc(db, 'sessions', data.roomCode)
     const sessionData: SessionDocument = {
       id: sessionRef.id,
       roomCode: data.roomCode,
@@ -237,22 +237,20 @@ export const dataAccess = {
 
     const snapshot = await getDocs(q)
 
-    // Fetch sessions with their players
-    const sessions = await Promise.all(
-      snapshot.docs.map(async (sessionDoc) => {
-        const sessionData = convertSessionDoc(sessionDoc)
-        const players = await this.getSessionPlayers(sessionDoc.id)
+    // Map sessions without fetching players (Deep Read Optimization)
+    // The history list only needs the summary data stored on the session document.
+    const sessions = snapshot.docs.map((sessionDoc) => {
+      const sessionData = convertSessionDoc(sessionDoc)
 
-        return {
-          ...sessionData,
-          players,
-          // Convert Timestamps to Dates for compatibility
-          createdAt: timestampToDate(sessionData.createdAt),
-          endedAt: timestampToDate(sessionData.endedAt),
-          playedAt: timestampToDate(sessionData.playedAt),
-        }
-      })
-    )
+      return {
+        ...sessionData,
+        players: [], // Optimization: Do not fetch players for history list
+        // Convert Timestamps to Dates for compatibility
+        createdAt: timestampToDate(sessionData.createdAt),
+        endedAt: timestampToDate(sessionData.endedAt),
+        playedAt: timestampToDate(sessionData.playedAt),
+      }
+    })
 
     return sessions
   },

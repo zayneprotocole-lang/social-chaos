@@ -1,6 +1,7 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import GameSettingsPanel from '@/components/lobby/GameSettings'
 import { Button } from '@/components/ui/button'
 import { Play } from 'lucide-react'
@@ -10,6 +11,7 @@ import { useLobbyLogic } from '@/hooks/useLobbyLogic'
 import LobbyHeader from '@/components/lobby/LobbyHeader'
 import DurationCard from '@/components/lobby/DurationCard'
 import PlayerList from '@/components/lobby/PlayerList'
+import LobbySkeleton from '@/components/lobby/LobbySkeleton'
 
 export default function LobbyPage() {
   const params = useParams()
@@ -34,16 +36,37 @@ export default function LobbyPage() {
 
   const timeEst = calculateTimeEstimation()
 
-  if (isLoading || !session) {
+  const router = useRouter()
+
+  // Task 7.3: Instant Shell Interface - Show skeleton immediately
+  if (isLoading) {
+    return <LobbySkeleton />
+  }
+
+  if (!session) {
     return (
-      <div className="bg-background flex h-screen items-center justify-center text-white">
-        Chargement du lobby...
+      <div className="bg-background flex h-screen flex-col items-center justify-center gap-4 p-4 text-center text-white">
+        <h1 className="text-destructive text-2xl font-bold">
+          Session introuvable
+        </h1>
+        <p className="text-muted-foreground">
+          Le code {code} ne correspond à aucune partie active.
+        </p>
+        <Button onClick={() => router.push('/')} variant="outline">
+          Retour à l'accueil
+        </Button>
       </div>
     )
   }
 
+  // Task 7.3: Smooth Transition Animation - Fade in content when data loads
   return (
-    <div className="bg-background min-h-screen space-y-6 p-4 pb-24">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="bg-background min-h-screen space-y-6 p-4 pb-24"
+    >
       <LobbyHeader />
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -96,6 +119,6 @@ export default function LobbyPage() {
             : 'LANCER LA PARTIE'}
         </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }

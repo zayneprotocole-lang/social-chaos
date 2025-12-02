@@ -1,6 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
+import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import DareCard from '@/components/game/DareCard'
 import GameTimer from '@/components/game/GameTimer'
@@ -17,6 +18,7 @@ import GameProgress from '@/components/game/GameProgress'
 import PlayerListVertical from '@/components/game/PlayerListVertical'
 import TurnIndicator from '@/components/game/TurnIndicator'
 import ActionDock from '@/components/game/ActionDock'
+import GameSkeleton from '@/components/game/GameSkeleton'
 
 // Lazy-loaded components (non-critical for initial render)
 const SentencePopup = dynamic(() => import('@/components/game/SentencePopup'))
@@ -70,19 +72,21 @@ export default function GamePage() {
     return DIFFICULTY_CONFIG[diff].backgroundClass
   }
 
-  if (!session || !currentPlayer)
-    return (
-      <div className="flex h-screen items-center justify-center bg-black text-white">
-        Chargement...
-      </div>
-    )
+  // Task 7.3: Instant Shell Interface - Show skeleton while loading
+  if (!session || !currentPlayer) {
+    return <GameSkeleton />
+  }
 
   if (isGameFinished) {
     return <GameEndScreen players={session.players} session={session} />
   }
 
+  // Task 7.3: Smooth Transition Animation - Fade in content
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
       className={cn(
         'pb-safe flex min-h-screen flex-col bg-gradient-to-b transition-colors duration-1000',
         getBackgroundClass()
@@ -182,6 +186,6 @@ export default function GamePage() {
         onCancel={cancelAbandon}
         onConfirm={confirmAbandon}
       />
-    </div>
+    </motion.div>
   )
 }
