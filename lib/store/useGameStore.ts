@@ -1,18 +1,20 @@
 import { create } from 'zustand'
-import { Player } from '../types'
+import { persist } from 'zustand/middleware'
 
 interface GameState {
-  currentUser: Player | null
-
-  // Actions
-  setCurrentUser: (user: Player) => void
-  resetGame: () => void
+  // Volume settings or other global preferences can go here
+  volume: number
+  setVolume: (volume: number) => void
 }
 
-export const useGameStore = create<GameState>((set) => ({
-  currentUser: null,
-
-  setCurrentUser: (user) => set({ currentUser: user }),
-
-  resetGame: () => set({ currentUser: null }),
-}))
+export const useGameStore = create<GameState>()(
+  persist(
+    (set) => ({
+      volume: 0.5,
+      setVolume: (volume) => set({ volume }),
+    }),
+    {
+      name: 'social-chaos-storage',
+    }
+  )
+)

@@ -72,7 +72,7 @@ const DareCard = React.memo(({ dare, isVisible }: DareCardProps) => {
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <Badge variant="outline" className="border-primary text-primary">
-                                Niveau {dare.difficultyLevel}
+                                {DIFFICULTY_CONFIG[dare.difficultyLevel].name}
                             </Badge>
                             <Button
                                 variant="ghost"

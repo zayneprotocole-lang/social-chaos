@@ -14,6 +14,7 @@ import {
 import { Zap, Users, Skull, BookHeart, Clock, Loader2 } from 'lucide-react'
 import { dataAccess } from '@/lib/services/dataAccess'
 import { GAME_CONFIG } from '@/lib/constants/config'
+import { ensureAuthenticated } from '@/lib/firebase/auth'
 
 export default function Home() {
   const router = useRouter()
@@ -23,6 +24,9 @@ export default function Home() {
   const createRoom = async () => {
     setIsCreating(true)
     try {
+      // Ensure user is authenticated before creating session
+      await ensureAuthenticated()
+
       // Generate a random 4-letter code
       const code = Math.random().toString(36).substring(2, 6).toUpperCase()
 
@@ -41,6 +45,7 @@ export default function Home() {
       router.push(`/lobby/${code}?host=true`)
     } catch (error) {
       console.error('Error creating room:', error)
+      alert('Erreur lors de la création de la partie. Vérifiez la console.')
       setIsCreating(false)
     }
   }
@@ -112,7 +117,7 @@ export default function Home() {
               ) : (
                 <Zap className="mr-2 h-6 w-6" />
               )}
-              {isCreating ? 'CRÉATION...' : 'LANCER LA PARTIE'}
+              {isCreating ? 'CRÉATION...' : 'JOUER'}
             </Button>
           </CardContent>
         </Card>

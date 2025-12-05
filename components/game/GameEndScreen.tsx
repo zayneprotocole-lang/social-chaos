@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Trophy, Skull, Home } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
-import { useGameStore } from '@/lib/store/useGameStore'
 import { archiveGame } from '@/app/actions/game'
 import { GAME_CONFIG } from '@/lib/constants/config'
 
@@ -21,7 +20,6 @@ export default function GameEndScreen({
   session,
 }: GameEndScreenProps) {
   const router = useRouter()
-  const { resetGame } = useGameStore()
   const hasArchived = useRef(false)
 
   // Sort players by score (highest to lowest)
@@ -39,7 +37,6 @@ export default function GameEndScreen({
   }, [session])
 
   const handleReturnHome = () => {
-    resetGame()
     router.push('/')
   }
 
@@ -72,9 +69,9 @@ export default function GameEndScreen({
                 className={cn(
                   'flex items-center gap-4 rounded-lg border-2 p-4 transition-all',
                   isWinner &&
-                    'scale-105 border-yellow-500 bg-yellow-500/20 shadow-[0_0_20px_rgba(234,179,8,0.4)]',
+                  'scale-105 border-yellow-500 bg-yellow-500/20 shadow-[0_0_20px_rgba(234,179,8,0.4)]',
                   isLoser &&
-                    'border-red-500 bg-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.4)]',
+                  'border-red-500 bg-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.4)]',
                   !isWinner && !isLoser && 'border-white/10 bg-white/5'
                 )}
               >

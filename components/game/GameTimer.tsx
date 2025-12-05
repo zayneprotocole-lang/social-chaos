@@ -2,22 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { GAME_CONFIG } from '@/lib/constants/config'
 
 interface GameTimerProps {
-    duration: number
+    duration: number // Total duration in seconds
     onComplete: () => void
     isActive: boolean
     isGolden?: boolean // V9.1: Golden mode when timer is paused
 }
 
-export default function GameTimer({ duration, onComplete, isActive, isGolden = false }: GameTimerProps) {
+export default function GameTimer({
+    duration,
+    onComplete,
+    isActive,
+    isGolden = false,
+}: GameTimerProps) {
     const [progress, setProgress] = useState(100)
-
-    // Reset progress when duration changes (new turn)
-    useEffect(() => {
-        setProgress(100)
-    }, [duration])
 
     // Timer countdown logic with pause support
     useEffect(() => {
@@ -50,14 +49,15 @@ export default function GameTimer({ duration, onComplete, isActive, isGolden = f
     if (duration <= 0) return null
 
     const remainingSeconds = Math.ceil((progress / 100) * duration)
+    const progressPercent = progress
 
     // V9.1: Golden color when "En Cours" mode is active (paused)
     const barColor = isGolden
         ? 'bg-yellow-500 shadow-yellow-500'
-        : progress < 30 ? 'bg-red-500 shadow-red-500' : 'bg-primary shadow-primary'
+        : progressPercent < 30 ? 'bg-red-500 shadow-red-500' : 'bg-primary shadow-primary'
     const textColor = isGolden
         ? 'text-yellow-500'
-        : progress < 30 ? 'text-red-500 animate-pulse' : 'text-white'
+        : progressPercent < 30 ? 'text-red-500 animate-pulse' : 'text-white'
 
     return (
         <div className="w-full space-y-2">
@@ -67,7 +67,7 @@ export default function GameTimer({ duration, onComplete, isActive, isGolden = f
                         "h-full transition-all duration-100 ease-linear shadow-[0_0_10px_currentColor]",
                         barColor
                     )}
-                    style={{ width: `${progress}%` }}
+                    style={{ width: `${progressPercent}%` }}
                 />
             </div>
             <p className={cn(

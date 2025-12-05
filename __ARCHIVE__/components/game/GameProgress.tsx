@@ -13,7 +13,7 @@ export default function GameProgress({ session }: GameProgressProps) {
             </div>
             <div className="flex items-center gap-2 text-white/60">
                 <span className="text-secondary font-bold">JOUEURS</span>
-                <span>{session.playersPlayedThisRound} / {session.players.filter(p => !p.isPaused).length}</span>
+                <span>{session.playersPlayedThisRound + 1} / {session.players.filter(p => !p.isPaused).length}</span>
             </div>
         </div>
     )

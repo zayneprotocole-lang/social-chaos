@@ -28,6 +28,8 @@ export interface Player {
   exchangeLeft: number
   isHost: boolean
   isPaused?: boolean
+  turnOrder?: number // Position in turn order (0-based)
+  createdAt?: Date // Added for sorting
 }
 
 export interface GameSettings {
@@ -55,6 +57,12 @@ export interface GameSession {
   playersPlayedThisRound: number
   isProgressiveMode: boolean
   endedAt?: Date | null
+
+  // V9.3 - Atomic turn counter for forcing timer reset
+  turnCounter: number
+
+  // V9.4 - Track ALL players who have used swap this turn (prevents revenge swap on any of them)
+  swapUsedByPlayerIds?: string[]
 }
 
 // ========================================
@@ -113,6 +121,13 @@ export interface SessionDocument {
   currentDare?: Dare
   isPaused?: boolean
   playersPlayedThisRound?: number
+  startedAt?: Timestamp
+
+  // V9.3 - Atomic turn counter
+  turnCounter: number
+
+  // V9.4 - Track ALL players who have used swap this turn
+  swapUsedByPlayerIds?: string[]
 }
 
 /**
@@ -127,4 +142,5 @@ export interface SessionPlayerDocument {
   rerollsLeft: number
   exchangeLeft: number
   isHost: boolean
+  createdAt: Timestamp // Added for sorting
 }

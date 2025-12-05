@@ -11,7 +11,6 @@ interface ActionDockProps {
     isOnGoing: boolean
     setIsOnGoing: (value: boolean) => void
     onValidate: () => void
-    isMyTurn: boolean
     onJoker: () => void
     onReroll: () => void
     onSwap: () => void
@@ -23,7 +22,6 @@ const ActionDock = React.memo(({
     isOnGoing,
     setIsOnGoing,
     onValidate,
-    isMyTurn,
     onJoker,
     onReroll,
     onSwap
@@ -36,7 +34,6 @@ const ActionDock = React.memo(({
                 {currentPlayer.jokersLeft > 0 && (
                     <Button
                         onClick={onJoker}
-                        disabled={!isMyTurn}
                         variant="secondary"
                         className="flex-1 h-12 bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/50 relative overflow-hidden group"
                     >
@@ -50,7 +47,6 @@ const ActionDock = React.memo(({
                 {currentPlayer.rerollsLeft > 0 && (
                     <Button
                         onClick={onReroll}
-                        disabled={!isMyTurn}
                         variant="secondary"
                         className="flex-1 h-12 bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/50 relative overflow-hidden group"
                     >
@@ -64,7 +60,6 @@ const ActionDock = React.memo(({
                 {currentPlayer.exchangeLeft > 0 && (
                     <Button
                         onClick={onSwap}
-                        disabled={!isMyTurn}
                         variant="secondary"
                         className="flex-1 h-12 bg-orange-600 hover:bg-orange-500 text-white border border-orange-400/50 relative overflow-hidden group"
                     >
@@ -97,10 +92,12 @@ const ActionDock = React.memo(({
                 {/* Validated Button */}
                 <Button
                     onClick={onValidate}
-                    disabled={!isMyTurn}
+                    style={{
+                        backgroundColor: DIFFICULTY_CONFIG[session?.settings.difficulty || 1].color,
+                        boxShadow: `0 0 20px ${DIFFICULTY_CONFIG[session?.settings.difficulty || 1].color}`
+                    }}
                     className={cn(
-                        "flex-1 py-6 text-lg font-bold shadow-[0_0_20px_currentColor]",
-                        `bg-[${DIFFICULTY_CONFIG[session?.settings.difficulty || 1].color}] text-black hover:opacity-90`
+                        "flex-1 py-6 text-lg font-bold text-black hover:opacity-90"
                     )}
                 >
                     DÉFI VALIDÉ

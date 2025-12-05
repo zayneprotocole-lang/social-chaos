@@ -4,9 +4,16 @@ import { useSessionQuery } from '@/lib/hooks/useSessionQuery'
 import { useSessionMutations } from '@/lib/hooks/useSessionMutations'
 import { GAME_CONFIG } from '@/lib/constants/config'
 import { GameSettings, DifficultyLevel } from '@/lib/types'
+import { dataAccess } from '@/lib/services/dataAccess'
+
+import { MOCK_DARES } from '@/lib/constants/dares'
+
+import { useQueryClient } from '@tanstack/react-query'
 
 export function useLobbyLogic(code: string) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+
   // Use Query for session state
   const { session, isLoading } = useSessionQuery(code)
   // Use Mutations for updates
@@ -34,15 +41,60 @@ export function useLobbyLogic(code: string) {
 
   const handleAddPlayer = useCallback(async () => {
     if (!newPlayerName.trim() || !session) return
-    // Placeholder for adding player logic
-    setNewPlayerName('')
-    setShowAddPlayer(false)
+
+    try {
+      const playerData = {
+        name: newPlayerName.trim(),
+        score: 0,
+        jokersLeft: 1,
+        rerollsLeft: 1,
+        exchangeLeft: 1,
+        isHost: session.players.length === 0, // First player is host
+      }
+
+      await dataAccess.addPlayerToSession(session.id, playerData)
+
+      setNewPlayerName('')
+      setShowAddPlayer(false)
+    } catch (error) {
+      console.error('Error adding player:', error)
+    }
   }, [newPlayerName, session])
 
   const handleStartGame = useCallback(async () => {
-    if (!session) return
-    // Navigate to game
-    router.push(`/game/${code}`)
+    if (!session || session.players.length < 2) return
+
+    try {
+      // First player in the list starts (not random)
+      const firstPlayer = session.players[0]
+
+      // Pick random starting dare (optional, but good for immediate start)
+      const randomDare = MOCK_DARES[Math.floor(Math.random() * MOCK_DARES.length)]
+
+      const { Timestamp } = await import('firebase/firestore')
+
+      // Update session status to ACTIVE and initialize turn
+      await dataAccess.updateSession(session.id, {
+        status: 'ACTIVE',
+        currentTurnPlayerId: firstPlayer.id,
+        currentDare: randomDare,
+        roundsCompleted: 0,
+        playersPlayedThisRound: 0,
+        startedAt: Timestamp.now(),
+        roundsTotal: roundsTotal, // Ensure roundsTotal is synced
+      })
+
+      // Force refresh of cache before navigating
+      await queryClient.invalidateQueries({ queryKey: ['session', code] })
+
+      // Temporary delay for debugging
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Navigate to game
+      router.push(`/game/${code}`)
+    } catch (error) {
+      console.error('Error starting game:', error)
+    }
   }, [session, code, router])
 
   const handleDifficultyChange = useCallback(
@@ -77,16 +129,38 @@ export function useLobbyLogic(code: string) {
   )
 
   const handleDeletePlayer = useCallback(async (playerId: string) => {
-    // Placeholder for delete player
-    console.log('Delete player', playerId)
-  }, [])
+    if (!session) return
+
+    try {
+      // Delete player from Firestore
+      const { deleteDoc, doc } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase/firestore')
+
+      await deleteDoc(doc(db, 'sessions', session.id, 'players', playerId))
+    } catch (error) {
+      console.error('Error deleting player:', error)
+    }
+  }, [session])
 
   const calculateTimeEstimation = useCallback(() => {
     if (!session) return { min: 0, max: 0 }
-    // Estimation: 2-4 mins per round
+
+    const playerCount = session.players.length || 2 // Minimum 2 players
+    const timerDurationSeconds = session.settings?.timerDuration || 60
+    const timerDurationMinutes = timerDurationSeconds / 60
+
+    // Base overhead per turn (reading dare, deciding, transitions, etc.)
+    const overheadMin = 0.5 // 30 seconds minimum overhead
+    const overheadMax = 1.5 // 90 seconds maximum overhead (with discussions, actions)
+
+    // Total time per turn = timer duration + overhead
+    const minTimePerTurn = timerDurationMinutes + overheadMin
+    const maxTimePerTurn = timerDurationMinutes + overheadMax
+
+    // Total time = rounds × players × timePerTurn
     return {
-      min: roundsTotal * 2,
-      max: roundsTotal * 4,
+      min: Math.round(roundsTotal * playerCount * minTimePerTurn),
+      max: Math.round(roundsTotal * playerCount * maxTimePerTurn),
     }
   }, [session, roundsTotal])
 

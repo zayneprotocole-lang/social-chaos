@@ -12,6 +12,7 @@ interface PlayerListVerticalProps {
 }
 
 const PlayerListVertical = React.memo(({ session, currentPlayer, isSwapping, onPlayerClick }: PlayerListVerticalProps) => {
+
     return (
         <div className="fixed right-4 top-20 z-40 w-48 max-h-[calc(100vh-120px)] overflow-y-auto">
             <div className="bg-black/60 backdrop-blur-md border border-primary/20 rounded-lg p-3 space-y-2">

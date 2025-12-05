@@ -67,6 +67,17 @@ function convertSessionDoc(
     roundsPlayed: data.roundsPlayed || null,
     difficultyLabel: data.difficultyLabel || null,
     playedAt: data.playedAt || null,
+
+    // Dynamic Game State Fields
+    currentTurnPlayerId: data.currentTurnPlayerId,
+    currentDare: data.currentDare,
+    isPaused: data.isPaused,
+    playersPlayedThisRound: data.playersPlayedThisRound,
+    startedAt: data.startedAt,
+    turnCounter: data.turnCounter || 0, // V9.3: Default to 0 for old sessions
+
+    // V9.4: Swap blocking (all players who used swap this turn)
+    swapUsedByPlayerIds: data.swapUsedByPlayerIds || [],
   }
 }
 
@@ -95,6 +106,7 @@ export const dataAccess = {
       isProgressiveMode: data.isProgressiveMode,
       createdAt: Timestamp.now(),
       endedAt: null,
+      turnCounter: 1, // V9.3: Initialize turnCounter to 1
     }
 
     await setDoc(sessionRef, sessionData)
@@ -158,10 +170,13 @@ export const dataAccess = {
    */
   async addPlayerToSession(
     sessionId: string,
-    playerData: Omit<SessionPlayerDocument, 'id'>
+    playerData: Omit<SessionPlayerDocument, 'id' | 'createdAt'>
   ) {
     const playersRef = collection(db, 'sessions', sessionId, 'players')
-    const playerDoc = await addDoc(playersRef, playerData)
+    const playerDoc = await addDoc(playersRef, {
+      ...playerData,
+      createdAt: Timestamp.now(),
+    })
     return playerDoc.id
   },
 
@@ -170,15 +185,18 @@ export const dataAccess = {
    */
   async getSessionPlayers(sessionId: string): Promise<Player[]> {
     const playersRef = collection(db, 'sessions', sessionId, 'players')
-    const snapshot = await getDocs(playersRef)
+    const q = query(playersRef, orderBy('createdAt', 'asc'))
+    const snapshot = await getDocs(q)
 
-    return snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        }) as Player
-    )
+    return snapshot.docs.map((doc) => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        ...data,
+        // Ensure createdAt is converted to a Date object if it's a Timestamp
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+      } as Player
+    })
   },
 
   /**
@@ -253,6 +271,26 @@ export const dataAccess = {
     })
 
     return sessions
+  },
+
+  /**
+   * Save game history (Max 10 entries)
+   */
+  async saveGameHistory(historyData: Omit<import('@/types/history').HistoryDocument, 'id'>) {
+    const historyRef = collection(db, 'history')
+
+    // 1. Get existing history count
+    const q = query(historyRef, orderBy('playedAt', 'asc'))
+    const snapshot = await getDocs(q)
+
+    // 2. Manage Limit (Max 10)
+    if (snapshot.size >= 10) {
+      const oldestDoc = snapshot.docs[0]
+      await deleteDoc(doc(db, 'history', oldestDoc.id))
+    }
+
+    // 3. Add new entry
+    await addDoc(historyRef, historyData)
   },
 
   /**
@@ -404,17 +442,20 @@ export const dataAccess = {
     callback: (players: Player[]) => void
   ): Unsubscribe {
     const playersRef = collection(db, 'sessions', sessionId, 'players')
+    const q = query(playersRef, orderBy('createdAt', 'asc'))
 
     return onSnapshot(
-      playersRef,
+      q,
       (querySnap) => {
-        const players = querySnap.docs.map(
-          (doc) =>
-            ({
-              id: doc.id,
-              ...doc.data(),
-            }) as Player
-        )
+        const players = querySnap.docs.map((doc) => {
+          const data = doc.data()
+          return {
+            id: doc.id,
+            ...data,
+            // Ensure createdAt is converted to a Date object if it's a Timestamp
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+          } as Player
+        })
         callback(players)
       },
       (error) => {
@@ -443,6 +484,33 @@ export const dataAccess = {
   },
 
   /**
+   * Swap two players' positions by exchanging their createdAt timestamps
+   * This effectively changes their turn order since the list is sorted by createdAt
+   */
+  async swapPlayersPositions(
+    sessionId: string,
+    player1: Player,
+    player2: Player
+  ) {
+    const batch = writeBatch(db)
+
+    const p1Ref = doc(db, 'sessions', sessionId, 'players', player1.id)
+    const p2Ref = doc(db, 'sessions', sessionId, 'players', player2.id)
+
+    // Swap createdAt timestamps
+    // We need to handle both Date and Timestamp types safely
+    const p1Date = player1.createdAt instanceof Date ? player1.createdAt : new Date()
+    const p2Date = player2.createdAt instanceof Date ? player2.createdAt : new Date()
+
+    const { Timestamp } = await import('firebase/firestore')
+
+    batch.update(p1Ref, { createdAt: Timestamp.fromDate(p2Date) })
+    batch.update(p2Ref, { createdAt: Timestamp.fromDate(p1Date) })
+
+    await batch.commit()
+  },
+
+  /**
    * Update game turn (next player, next dare, round info)
    */
   async updateGameTurn(
@@ -453,6 +521,9 @@ export const dataAccess = {
       roundsCompleted?: number
       playersPlayedThisRound?: number
       settings?: Partial<GameSettings>
+      startedAt?: Timestamp
+      turnCounter?: any // V9.3: Allow increment() or number
+      swapUsedByPlayerIds?: string[] // V9.4: All players who used swap this turn
     }
   ) {
     const sessionRef = doc(db, 'sessions', sessionId)

@@ -9,7 +9,7 @@ export const GAME_CONFIG = {
     ROUNDS: {
         MIN: 5,
         MAX: 50,
-        DEFAULT: 10,
+        DEFAULT: 6,
     },
     COLORS: {
         PRIMARY: '#7c3aed',

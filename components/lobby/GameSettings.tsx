@@ -104,7 +104,7 @@ export default function GameSettingsPanel({ defaultSettings, onUpdate, isProgres
                             >
                                 <span className="font-mono font-bold text-lg">{lvl.name}</span>
                                 <span className="text-xs opacity-80 font-sans">
-                                    {lvl.timer > 0 ? `${lvl.timer / 60} min` : 'Pas de Timer'}
+                                    {lvl.timer === 0 ? 'Pas de Timer' : lvl.timer >= 60 ? `${lvl.timer / 60} min` : `${lvl.timer} sec`}
                                 </span>
                             </button>
                         ))}

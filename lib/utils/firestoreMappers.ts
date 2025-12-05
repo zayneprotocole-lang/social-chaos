@@ -35,6 +35,12 @@ export function mapFirestoreToSession(
     playersPlayedThisRound: data.playersPlayedThisRound || 0,
     isProgressiveMode: data.isProgressiveMode || false,
 
+    // V9.3 - Atomic turn counter
+    turnCounter: data.turnCounter || 1,
+
+    // V9.4 - Swap blocking (all players who used swap this turn)
+    swapUsedByPlayerIds: data.swapUsedByPlayerIds || [],
+
     // Timestamps
     startedAt: toDate(data.createdAt),
     endedAt: data.endedAt ? toDate(data.endedAt) : null,

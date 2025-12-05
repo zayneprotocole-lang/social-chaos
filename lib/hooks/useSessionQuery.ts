@@ -11,6 +11,7 @@ export function useSessionQuery(roomId: string) {
   const {
     data: session,
     isLoading,
+    isFetching,
     error,
   } = useQuery<GameSession | null>({
     queryKey,
@@ -73,5 +74,5 @@ export function useSessionQuery(roomId: string) {
     }
   }, [roomId, queryClient, queryKey])
 
-  return { session, isLoading, error }
+  return { session, isLoading, error, isFetching }
 }

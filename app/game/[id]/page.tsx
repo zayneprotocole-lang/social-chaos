@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
@@ -14,9 +15,7 @@ import { useGameFlow } from '@/hooks/useGameFlow'
 import { useGameActions } from '@/hooks/useGameActions'
 
 // New UI Components
-import GameProgress from '@/components/game/GameProgress'
-import PlayerListVertical from '@/components/game/PlayerListVertical'
-import TurnIndicator from '@/components/game/TurnIndicator'
+import GameSidebar from '@/components/game/GameSidebar'
 import ActionDock from '@/components/game/ActionDock'
 import GameSkeleton from '@/components/game/GameSkeleton'
 
@@ -25,14 +24,16 @@ const SentencePopup = dynamic(() => import('@/components/game/SentencePopup'))
 const GameEndScreen = dynamic(() => import('@/components/game/GameEndScreen'))
 const OptionsMenu = dynamic(() => import('@/components/game/OptionsMenu'))
 const AbandonOverlay = dynamic(() => import('@/components/game/AbandonOverlay'))
+const SuccessPopup = dynamic(() => import('@/components/game/SuccessPopup'))
 
 export default function GamePage() {
   const params = useParams()
-  const { session, currentPlayer, isMyTurn, isGameFinished, MOCK_DARES } =
+  const { session, currentPlayer, isGameFinished, MOCK_DARES, isLoading, isFetching } =
     useGameSession(params.id as string)
 
   const {
     isCardVisible,
+    isCardRevealed,
     gameStatus,
     controlStep,
     isSentenceOpen,
@@ -42,18 +43,23 @@ export default function GamePage() {
     isTimerActive,
     isOnGoing,
     setIsOnGoing,
+    isSuccessPopupOpen,
+    handleSuccessPopupComplete,
+    isLocalGameFinished,
     startTurn,
     handleTimerComplete,
-    handleNextTurn,
+    finishTurnAndAdvance,
     handleValidateChallenge,
     handleAbandon,
     confirmAbandon,
     cancelAbandon,
     handleSentenceNext,
+    handleFastTurnTransition,
   } = useGameFlow(session ?? null, MOCK_DARES)
 
   const {
     isSwapping,
+    setIsSwapping,
     handlePlayerClick,
     handleJoker,
     handleReroll,
@@ -61,10 +67,18 @@ export default function GamePage() {
   } = useGameActions(
     session?.id,
     currentPlayer,
+    session?.players, // Pass players list for swap logic
     session?.currentDare,
+    session?.swapUsedByPlayerIds, // V9.4: Pass all players who used swap to prevent revenge swap
     MOCK_DARES,
-    handleNextTurn
+    finishTurnAndAdvance,
+    handleFastTurnTransition
   )
+
+  // Reset swap state when dare changes (new turn)
+  useEffect(() => {
+    setIsSwapping(false)
+  }, [session?.currentDare?.id, setIsSwapping])
 
   // Determine background based on difficulty (Apocalypse is now Violet)
   const getBackgroundClass = () => {
@@ -73,11 +87,14 @@ export default function GamePage() {
   }
 
   // Task 7.3: Instant Shell Interface - Show skeleton while loading
-  if (!session || !currentPlayer) {
+  // Task 8.1: Check isLoading and isFetching for accurate loading state
+  if (isLoading || isFetching || !session || !currentPlayer) {
     return <GameSkeleton />
   }
 
-  if (isGameFinished) {
+  // Check both local state (immediate) and Firestore state (synced)
+  if (isGameFinished || isLocalGameFinished) {
+    console.log('🏁 Showing GameEndScreen:', { isGameFinished, isLocalGameFinished })
     return <GameEndScreen players={session.players} session={session} />
   }
 
@@ -97,53 +114,66 @@ export default function GamePage() {
         <OptionsMenu />
       </div>
 
-      {/* Game Progress Display */}
-      <GameProgress session={session} />
-
-      {/* Player List - Always Visible Sidebar */}
-      <PlayerListVertical
+      {/* Game Sidebar - Replaces GameProgress, PlayerList, and TurnIndicator */}
+      <GameSidebar
         session={session}
-        currentPlayer={currentPlayer}
         isSwapping={isSwapping}
         onPlayerClick={handlePlayerClick}
+        swapUsedByPlayerIds={session.swapUsedByPlayerIds}
       />
 
-      {/* Main Game Area */}
-      <div className="relative flex flex-1 flex-col items-center justify-center space-y-6 p-4 pr-56">
+      {/* Main Game Area - Adjusted padding for desktop sidebar */}
+      <div className="relative flex flex-1 flex-col items-center justify-center space-y-6 p-4 md:pr-72 pb-48 md:pb-4">
         {/* Background Effects */}
         <div className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
 
-        {/* Turn Indicator - Above Card */}
-        <TurnIndicator currentPlayer={currentPlayer} />
-
-        {/* Timer */}
-        <div className="relative z-10 w-full max-w-md">
-          {/* Abandon button moved next to timer */}
-          {gameStatus === 'PLAYING' &&
-            controlStep === 'ACTION' &&
-            (session?.settings.difficulty || 1) >= 2 && (
+        {/* Timer - Only visible after card is revealed (for difficulty >= 2) */}
+        {isCardRevealed && (
+          <div className="relative z-10 w-full max-w-md">
+            {/* Abandon/Passer button - Always visible when playing */}
+            {gameStatus === 'PLAYING' && controlStep === 'ACTION' && (
               <Button
                 onClick={handleAbandon}
-                variant="destructive"
+                variant={(session?.settings.difficulty || 1) === 1 ? "outline" : "destructive"}
                 size="sm"
-                className="absolute -top-12 right-0 px-3 py-1 text-xs shadow-[0_0_10px_var(--destructive)]"
+                className={cn(
+                  "absolute -top-12 right-0 px-3 py-1 text-xs",
+                  (session?.settings.difficulty || 1) === 1
+                    ? "border-white/30 hover:border-white/50"
+                    : "shadow-[0_0_10px_var(--destructive)]"
+                )}
               >
                 <Skull className="mr-1 h-3 w-3" />
-                ABANDON
+                {(session?.settings.difficulty || 1) === 1 ? 'PASSER' : 'ABANDON'}
               </Button>
             )}
-          <GameTimer
-            duration={session.settings.timerDuration}
-            isActive={isTimerActive && !isOnGoing}
-            onComplete={handleTimerComplete}
-            isGolden={isOnGoing}
-          />
-        </div>
+            {/* Timer only for difficulty >= 2 */}
+            {(session?.settings.difficulty || 1) >= 2 && (
+              <GameTimer
+                key={session.turnCounter} // V9.3: Force remount on every turn
+                duration={session.settings.timerDuration}
+                isActive={isTimerActive && !isOnGoing}
+                onComplete={handleTimerComplete}
+                isGolden={isOnGoing}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Current Player Indicator */}
+        {session.currentDare && (
+          <div className="text-center mb-4 z-30">
+            <p className="text-lg font-bold text-white/90">
+              <span className="text-primary text-xl">{currentPlayer.name}</span>
+            </p>
+            <p className="text-sm text-white/60 animate-pulse">à toi de jouer !</p>
+          </div>
+        )}
 
         {/* The Card */}
         <div className="perspective-1000 relative z-20 w-full">
           {session.currentDare && (
-            <DareCard dare={session.currentDare} isVisible={isCardVisible} />
+            <DareCard dare={session.currentDare} isVisible={isCardRevealed} />
           )}
         </div>
 
@@ -155,7 +185,6 @@ export default function GamePage() {
             isOnGoing={isOnGoing}
             setIsOnGoing={setIsOnGoing}
             onValidate={() => handleValidateChallenge(currentPlayer.id)}
-            isMyTurn={isMyTurn}
             onJoker={handleJoker}
             onReroll={handleReroll}
             onSwap={handleSwap}
@@ -173,6 +202,12 @@ export default function GamePage() {
         )}
       </div>
 
+      <SuccessPopup
+        isOpen={isSuccessPopupOpen}
+        playerName={currentPlayer?.name}
+        onAnimationComplete={handleSuccessPopupComplete}
+      />
+
       <SentencePopup
         isOpen={isSentenceOpen}
         onClose={() => setIsSentenceOpen(false)}
@@ -185,6 +220,7 @@ export default function GamePage() {
         isOpen={isAbandonConfirmOpen}
         onCancel={cancelAbandon}
         onConfirm={confirmAbandon}
+        penaltyText={currentPenalty}
       />
     </motion.div>
   )
