@@ -1,7 +1,7 @@
 import React from 'react'
 import { GameSession, Player } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Clock, ArrowRight, Dices, RefreshCw, Shuffle } from 'lucide-react'
+import { Clock, ArrowRight, Dices, RefreshCw, Shuffle, Handshake } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DIFFICULTY_CONFIG } from '@/lib/constants/config'
 
@@ -14,6 +14,13 @@ interface ActionDockProps {
     onJoker: () => void
     onReroll: () => void
     onSwap: () => void
+    // Accompagnement props
+    accompagnementAvailable?: boolean
+    accompagnementUsed?: boolean
+    accompagnementTargetName?: string
+    onAccompagnement?: () => void
+    // Actions disabled when Accompagnement is invoked
+    actionsDisabled?: boolean
 }
 
 const ActionDock = React.memo(({
@@ -24,7 +31,12 @@ const ActionDock = React.memo(({
     onValidate,
     onJoker,
     onReroll,
-    onSwap
+    onSwap,
+    accompagnementAvailable = false,
+    accompagnementUsed = false,
+    accompagnementTargetName,
+    onAccompagnement,
+    actionsDisabled = false
 }: ActionDockProps) => {
     return (
         <div className="flex flex-col gap-4 w-full max-w-sm z-30">
@@ -34,8 +46,12 @@ const ActionDock = React.memo(({
                 {currentPlayer.jokersLeft > 0 && (
                     <Button
                         onClick={onJoker}
+                        disabled={actionsDisabled}
                         variant="secondary"
-                        className="flex-1 h-12 bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/50 relative overflow-hidden group"
+                        className={cn(
+                            "flex-1 h-12 bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/50 relative overflow-hidden group",
+                            actionsDisabled && "opacity-50 cursor-not-allowed"
+                        )}
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-white/20 to-purple-600/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
                         <Dices className="w-5 h-5 mr-2" />
@@ -47,8 +63,12 @@ const ActionDock = React.memo(({
                 {currentPlayer.rerollsLeft > 0 && (
                     <Button
                         onClick={onReroll}
+                        disabled={actionsDisabled}
                         variant="secondary"
-                        className="flex-1 h-12 bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/50 relative overflow-hidden group"
+                        className={cn(
+                            "flex-1 h-12 bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/50 relative overflow-hidden group",
+                            actionsDisabled && "opacity-50 cursor-not-allowed"
+                        )}
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/20 to-blue-600/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
                         <RefreshCw className="w-5 h-5 mr-2" />
@@ -60,8 +80,12 @@ const ActionDock = React.memo(({
                 {currentPlayer.exchangeLeft > 0 && (
                     <Button
                         onClick={onSwap}
+                        disabled={actionsDisabled}
                         variant="secondary"
-                        className="flex-1 h-12 bg-orange-600 hover:bg-orange-500 text-white border border-orange-400/50 relative overflow-hidden group"
+                        className={cn(
+                            "flex-1 h-12 bg-orange-600 hover:bg-orange-500 text-white border border-orange-400/50 relative overflow-hidden group",
+                            actionsDisabled && "opacity-50 cursor-not-allowed"
+                        )}
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-orange-600/0 via-white/20 to-orange-600/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
                         <Shuffle className="w-5 h-5 mr-2" />
@@ -69,6 +93,30 @@ const ActionDock = React.memo(({
                     </Button>
                 )}
             </div>
+
+            {/* Accompagnement Row (if available) */}
+            {accompagnementAvailable && onAccompagnement && (
+                <div className="flex justify-center">
+                    <Button
+                        onClick={onAccompagnement}
+                        disabled={accompagnementUsed}
+                        variant="secondary"
+                        className={cn(
+                            "flex-1 h-12 bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/50 relative overflow-hidden group",
+                            accompagnementUsed && "opacity-50 cursor-not-allowed"
+                        )}
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/0 via-white/20 to-indigo-600/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
+                        <Handshake className="w-5 h-5 mr-2" />
+                        <span className="font-bold">
+                            {accompagnementUsed ? 'ACCOMPAGNEMENT UTILISÉ' : `ACCOMPAGNEMENT`}
+                        </span>
+                        {accompagnementTargetName && !accompagnementUsed && (
+                            <span className="ml-1 text-xs opacity-80">({accompagnementTargetName})</span>
+                        )}
+                    </Button>
+                </div>
+            )}
 
             {/* Main Actions Row */}
             <div className="flex gap-4">

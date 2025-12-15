@@ -9,10 +9,11 @@ interface DurationCardProps {
     isProgressiveMode: boolean
     session: GameSession | null
     timeEst: { min: number; max: number }
+    playerCount: number
     onUpdate: (rounds: number, progressive: boolean) => void
 }
 
-export default function DurationCard({ roundsTotal, isProgressiveMode, session, timeEst, onUpdate }: DurationCardProps) {
+export default function DurationCard({ roundsTotal, isProgressiveMode, session, timeEst, playerCount, onUpdate }: DurationCardProps) {
     return (
         <Card className="bg-card/50 border-primary/20">
             <CardHeader>
@@ -37,7 +38,7 @@ export default function DurationCard({ roundsTotal, isProgressiveMode, session, 
                             <SelectItem value="10">10 Tours (Marathon)</SelectItem>
                         </SelectContent>
                     </Select>
-                    {session && session.players.length > 0 && (
+                    {playerCount > 0 && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <Clock className="w-3 h-3" /> Estimation : {timeEst.min} - {timeEst.max} min
                         </p>

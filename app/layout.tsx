@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
+import { LoadingScreen } from '@/components/ui/LoadingScreen'
+import { VisualEditing } from 'next-sanity/visual-editing'
+import { draftMode } from 'next/headers'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,17 +32,23 @@ export const viewport: Viewport = {
   themeColor: '#000000',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const { isEnabled } = await draftMode()
+
   return (
     <html lang="fr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} bg-black text-white antialiased`}
       >
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          {children}
+          <LoadingScreen />
+          {isEnabled && <VisualEditing />}
+        </QueryProvider>
       </body>
     </html>
   )

@@ -62,7 +62,7 @@ export function useLobbyLogic(code: string) {
   }, [newPlayerName, session])
 
   const handleStartGame = useCallback(async () => {
-    if (!session || session.players.length < 2) return
+    if (!session || session.players.length < 1) return // Mode solo autorisé (1 joueur)
 
     try {
       // First player in the list starts (not random)

@@ -1,3 +1,9 @@
+// Local Player Profiles (V10.0)
+export * from './profile'
+
+// Lobby Types (V10.0)
+export * from './lobby'
+
 export type DifficultyLevel = 1 | 2 | 3 | 4
 
 export type DareCategory =
@@ -21,15 +27,27 @@ export interface Dare {
 export interface Player {
   id: string
   name: string
-  avatar?: string
+  avatar?: string | null
   score: number
   jokersLeft: number
   rerollsLeft: number
   exchangeLeft: number
   isHost: boolean
   isPaused?: boolean
+  hasBeenPaused?: boolean // V9.6: Track if player was ever paused (disqualified from ranking)
   turnOrder?: number // Position in turn order (0-based)
   createdAt?: Date // Added for sorting
+  profileId?: string // Link to LocalPlayerProfile for Mentor/Élève system
+  preferences?: {
+    want: string[]
+    avoid: string[]
+  }
+
+  // Accompagnement (V11 - set at game start if part of active Mentor/Élève duo)
+  hasAccompagnement?: boolean            // true if part of an active duo
+  accompagnementPartnerId?: string       // Player ID of partner
+  accompagnementPartnerName?: string     // Partner name for display
+  accompagnementUsed?: boolean           // true if already used this game
 }
 
 export interface GameSettings {
@@ -136,11 +154,16 @@ export interface SessionDocument {
 export interface SessionPlayerDocument {
   id: string
   name: string
-  avatar?: string
+  avatar?: string | null
   score: number
   jokersLeft: number
   rerollsLeft: number
   exchangeLeft: number
   isHost: boolean
+  hasBeenPaused?: boolean
   createdAt: Timestamp // Added for sorting
+  preferences?: {
+    want: string[]
+    avoid: string[]
+  }
 }

@@ -101,6 +101,19 @@ export function useGameActions(
     }
   }, [isSwapping, currentPlayer, sessionId, currentDare, mutations, players, swapUsedByPlayerIds])
 
+  const handleTogglePause = useCallback(async (playerId: string, isPaused: boolean) => {
+    if (!sessionId) return
+
+    await mutations.togglePause({ playerId, isPaused })
+
+    // If pausing the CURRENT player, skip turn immediately
+    // finishTurnAndAdvance will find the next ACTIVE player automatically
+    if (isPaused && playerId === currentPlayer?.id) {
+      console.log("⏸️ Current player paused, skipping turn...")
+      await handleFastTurnTransition({ showSuccessPopup: false })
+    }
+  }, [sessionId, mutations, currentPlayer, handleFastTurnTransition])
+
   return {
     isSwapping,
     setIsSwapping,
@@ -108,5 +121,6 @@ export function useGameActions(
     handleReroll,
     handleSwap,
     handlePlayerClick,
+    handleTogglePause,
   }
 }

@@ -53,11 +53,22 @@ export function useSessionMutations(sessionId: string) {
     },
   })
 
+  const togglePauseMutation = useMutation({
+    mutationFn: async ({ playerId, isPaused }: { playerId: string; isPaused: boolean }) => {
+      const updates: { isPaused: boolean; hasBeenPaused?: boolean } = { isPaused }
+      if (isPaused) {
+        updates.hasBeenPaused = true
+      }
+      await dataAccess.updatePlayerStatus(sessionId, playerId, updates)
+    },
+  })
+
   return {
     updateScore: updateScoreMutation.mutateAsync,
     updateGameTurn: updateGameTurnMutation.mutateAsync,
     decrementAttribute: decrementAttributeMutation.mutateAsync,
     updateSettings: updateSettingsMutation.mutateAsync,
     swapPlayers: swapPlayersMutation.mutateAsync,
+    togglePause: togglePauseMutation.mutateAsync,
   }
 }

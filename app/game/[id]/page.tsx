@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useGameSession } from '@/hooks/useGameSession'
 import { useGameFlow } from '@/hooks/useGameFlow'
 import { useGameActions } from '@/hooks/useGameActions'
+import { useMentorEleveStore } from '@/lib/store/useMentorEleveStore'
 
 // New UI Components
 import GameSidebar from '@/components/game/GameSidebar'
@@ -25,6 +26,7 @@ const GameEndScreen = dynamic(() => import('@/components/game/GameEndScreen'))
 const OptionsMenu = dynamic(() => import('@/components/game/OptionsMenu'))
 const AbandonOverlay = dynamic(() => import('@/components/game/AbandonOverlay'))
 const SuccessPopup = dynamic(() => import('@/components/game/SuccessPopup'))
+const AccompagnementModal = dynamic(() => import('@/components/game/AccompagnementModal').then(m => ({ default: m.AccompagnementModal })))
 
 export default function GamePage() {
   const params = useParams()
@@ -64,6 +66,7 @@ export default function GamePage() {
     handleJoker,
     handleReroll,
     handleSwap,
+    handleTogglePause,
   } = useGameActions(
     session?.id,
     currentPlayer,
@@ -79,6 +82,90 @@ export default function GamePage() {
   useEffect(() => {
     setIsSwapping(false)
   }, [session?.currentDare?.id, setIsSwapping])
+
+  // Accompagnement state
+  const [isAccompagnementModalOpen, setIsAccompagnementModalOpen] = useState(false)
+  const [accompagnementUsedThisGame, setAccompagnementUsedThisGame] = useState(false)
+  const [isAccompagnementActive, setIsAccompagnementActive] = useState(false)
+  const [accompagnateurName, setAccompagnateurName] = useState<string | null>(null)
+  const [isTimerPausedForAccompagnement, setIsTimerPausedForAccompagnement] = useState(false)
+  const [timerResetTrigger, setTimerResetTrigger] = useState(0) // Increment to force timer reset
+
+  const links = useMentorEleveStore(s => s.links)
+  const markAccompagnementUsed = useMentorEleveStore(s => s.markAccompagnementUsed)
+
+  // Find active duo for current player
+  // Only show links that existed BEFORE this game started (prevent mid-game bonus appearing)
+  const accompagnementInfo = useMemo(() => {
+    if (!currentPlayer?.profileId || !session?.players) return null
+
+    // Get game start time (Firestore Timestamp or Date)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const startedAt = session.startedAt as any
+    const gameStartTime = startedAt instanceof Date
+      ? startedAt.getTime()
+      : startedAt?.toMillis?.() || Date.now()
+
+    for (const link of links) {
+      // Skip consumed links or links created AFTER this game started
+      if (link.isConsumed) continue
+      if (link.createdAt > gameStartTime) continue
+
+      const isMentor = link.mentorProfileId === currentPlayer.profileId
+      const isEleve = link.eleveProfileId === currentPlayer.profileId
+
+      if (isMentor || isEleve) {
+        const partnerProfileId = isMentor ? link.eleveProfileId : link.mentorProfileId
+        const partner = session.players.find(p => p.profileId === partnerProfileId)
+
+        if (partner) {
+          const alreadyUsed = isMentor ? link.mentorUsedAccompagnement : link.eleveUsedAccompagnement
+          return {
+            linkId: link.id,
+            isMentor,
+            partnerName: partner.name,
+            used: alreadyUsed || accompagnementUsedThisGame
+          }
+        }
+      }
+    }
+    return null
+  }, [currentPlayer?.profileId, session?.players, session?.startedAt, links, accompagnementUsedThisGame])
+
+  // Open modal and PAUSE timer
+  const handleAccompagnement = () => {
+    setIsTimerPausedForAccompagnement(true)
+    setIsAccompagnementModalOpen(true)
+  }
+
+  // Close modal WITHOUT invoking - RESUME timer
+  const handleCloseAccompagnement = () => {
+    setIsAccompagnementModalOpen(false)
+    setIsTimerPausedForAccompagnement(false)
+    // Timer continues from where it was
+  }
+
+  // Invoke - RESET timer, mark action used, grey out other actions
+  const handleInvokeAccompagnement = () => {
+    if (accompagnementInfo) {
+      markAccompagnementUsed(accompagnementInfo.linkId, accompagnementInfo.isMentor)
+      setAccompagnementUsedThisGame(true)
+      setIsAccompagnementActive(true)
+      setAccompagnateurName(accompagnementInfo.partnerName)
+    }
+    setIsAccompagnementModalOpen(false)
+    setIsTimerPausedForAccompagnement(false)
+    // Trigger timer reset by incrementing the reset trigger
+    setTimerResetTrigger(prev => prev + 1)
+  }
+
+  // Reset accompagnement active state on turn change
+  useEffect(() => {
+    setIsAccompagnementActive(false)
+    setAccompagnateurName(null)
+    setAccompagnementUsedThisGame(false)
+    setIsTimerPausedForAccompagnement(false)
+  }, [session?.currentTurnPlayerId])
 
   // Determine background based on difficulty (Apocalypse is now Violet)
   const getBackgroundClass = () => {
@@ -111,7 +198,12 @@ export default function GamePage() {
     >
       {/* Options Menu - Top Right */}
       <div className="fixed top-4 right-4 z-50">
-        <OptionsMenu />
+        <OptionsMenu
+          players={session.players}
+          currentTurnPlayerId={session.currentTurnPlayerId}
+          onTogglePause={handleTogglePause}
+          session={session}
+        />
       </div>
 
       {/* Game Sidebar - Replaces GameProgress, PlayerList, and TurnIndicator */}
@@ -150,9 +242,9 @@ export default function GamePage() {
             {/* Timer only for difficulty >= 2 */}
             {(session?.settings.difficulty || 1) >= 2 && (
               <GameTimer
-                key={session.turnCounter} // V9.3: Force remount on every turn
+                key={`${session.turnCounter}-${timerResetTrigger}`} // Force remount on turn change or invoke
                 duration={session.settings.timerDuration}
-                isActive={isTimerActive && !isOnGoing}
+                isActive={isTimerActive && !isOnGoing && !isTimerPausedForAccompagnement}
                 onComplete={handleTimerComplete}
                 isGolden={isOnGoing}
               />
@@ -175,6 +267,14 @@ export default function GamePage() {
           {session.currentDare && (
             <DareCard dare={session.currentDare} isVisible={isCardRevealed} />
           )}
+
+          {/* Accompagnement Active Indicator */}
+          {isAccompagnementActive && accompagnateurName && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-3 animate-pulse">
+              <span className="text-xl">🤝</span>
+              <span className="font-bold">Accompagné par {accompagnateurName}</span>
+            </div>
+          )}
         </div>
 
         {/* Buttons Below Card */}
@@ -188,6 +288,11 @@ export default function GamePage() {
             onJoker={handleJoker}
             onReroll={handleReroll}
             onSwap={handleSwap}
+            accompagnementAvailable={!!accompagnementInfo}
+            accompagnementUsed={accompagnementInfo?.used}
+            accompagnementTargetName={accompagnementInfo?.partnerName}
+            onAccompagnement={handleAccompagnement}
+            actionsDisabled={isAccompagnementModalOpen || isAccompagnementActive}
           />
         )}
 
@@ -222,6 +327,16 @@ export default function GamePage() {
         onConfirm={confirmAbandon}
         penaltyText={currentPenalty}
       />
+
+      {/* Accompagnement Modal */}
+      {accompagnementInfo && (
+        <AccompagnementModal
+          isOpen={isAccompagnementModalOpen}
+          onClose={handleCloseAccompagnement}
+          onInvoke={handleInvokeAccompagnement}
+          targetName={accompagnementInfo.partnerName}
+        />
+      )}
     </motion.div>
   )
 }

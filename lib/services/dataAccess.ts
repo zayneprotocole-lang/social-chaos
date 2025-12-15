@@ -224,6 +224,20 @@ export const dataAccess = {
   },
 
   /**
+   * Update a player's status (e.g. isPaused)
+   */
+  async updatePlayerStatus(
+    sessionId: string,
+    playerId: string,
+    updates: {
+      isPaused: boolean
+    }
+  ) {
+    const playerRef = doc(db, 'sessions', sessionId, 'players', playerId)
+    await updateDoc(playerRef, { ...updates })
+  },
+
+  /**
    * Update all players' scores in batch
    */
   async updateAllPlayerScores(sessionId: string, players: Player[]) {
@@ -311,7 +325,7 @@ export const dataAccess = {
       endedAt: Timestamp.now(),
       playedAt: Timestamp.now(),
       winnerName: metadata.winnerName,
-      loserName: metadata.loserName,
+      loserName: metadata.loserName || null,
       roundsPlayed: metadata.roundsPlayed,
       difficultyLabel: metadata.difficultyLabel,
     })

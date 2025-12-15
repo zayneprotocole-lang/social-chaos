@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Card,
   CardContent,
@@ -11,15 +10,82 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card'
-import { Zap, Users, Skull, BookHeart, Clock, Loader2 } from 'lucide-react'
+
+
+import { Zap, Users, Skull, BookHeart, Clock, Loader2, UserCircle } from 'lucide-react'
 import { dataAccess } from '@/lib/services/dataAccess'
 import { GAME_CONFIG } from '@/lib/constants/config'
 import { ensureAuthenticated } from '@/lib/firebase/auth'
+import { useGameStore } from '@/lib/store/useGameStore'
+import { useSavedGameStore } from '@/lib/store/useSavedGameStore'
+import { SavedGameCard } from '@/components/home/SavedGameCard'
+import { AnimatePresence } from 'framer-motion'
+import { PremiumModal, PremiumButton } from '@/components/premium/PremiumModal'
+import { HelpModal, HelpButton } from '@/components/help/HelpModal'
+import { SettingsModal, SettingsButton } from '@/components/settings/SettingsModal'
 
 export default function Home() {
   const router = useRouter()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [roomCode, setRoomCode] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [isPremiumOpen, setIsPremiumOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  const setActiveSession = useGameStore((state) => state.setActiveSession)
+
+  const savedGame = useSavedGameStore(s => s.savedGame)
+  const deleteGame = useSavedGameStore(s => s.deleteGame)
+  const [isValidatingSavedGame, setIsValidatingSavedGame] = useState(true)
+
+  // Clean up saved games that are finished or invalid
+  useEffect(() => {
+    const validateSavedGame = async () => {
+
+      if (!savedGame?.id) {
+        setIsValidatingSavedGame(false)
+        return
+      }
+
+      try {
+        // Check if the session exists and its status
+        const session = await dataAccess.getSession(savedGame.id)
+
+        if (!session || session.status === 'FINISHED') {
+          console.log('🧹 Cleaning up saved game (session finished or not found)')
+          deleteGame()
+        }
+      } catch (error) {
+        // If we can't fetch, delete to be safe
+        console.log('🧹 Cleaning up saved game (validation failed)', error)
+        deleteGame()
+      } finally {
+        setIsValidatingSavedGame(false)
+      }
+    }
+
+    validateSavedGame()
+  }, [savedGame?.id, deleteGame])
+
+  // Only show saved game card after validation completes
+  const hasSavedGame = !isValidatingSavedGame && !!savedGame
+
+  const handleResumeSavedGame = () => {
+    if (!savedGame) return
+    // Set active session from saved game data
+    setActiveSession(savedGame.id, savedGame.id.substring(0, 4).toUpperCase())
+    // Navigate to game page - the session ID is used as room code fallback
+    router.push(`/game/${savedGame.id}`)
+  }
+
+  const handleDeleteSavedGame = () => {
+    deleteGame()
+    // Also clear active session to prevent orphan "Reprendre la partie" button
+    setActiveSession(null, null)
+  }
+
+
 
   const createRoom = async () => {
     setIsCreating(true)
@@ -50,13 +116,6 @@ export default function Home() {
     }
   }
 
-  const joinRoom = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (roomCode.length >= 3) {
-      router.push(`/lobby/${roomCode.toUpperCase()}`)
-    }
-  }
-
   return (
     <main className="bg-background text-foreground relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4">
       {/* Library Button - Top Left */}
@@ -68,6 +127,35 @@ export default function Home() {
         <BookHeart className="mr-2 h-4 w-4" />
         Bibliothèque
       </Button>
+
+      {/* Premium Button - Top Left (Right of Library) */}
+      <PremiumButton
+        onClick={() => setIsPremiumOpen(true)}
+        className="fixed top-4 left-36 z-50"
+      />
+
+      {/* Help Button - Top Left (Right of Premium) */}
+      <HelpButton
+        onClick={() => setIsHelpOpen(true)}
+        className="fixed top-4 left-64 z-50"
+      />
+
+      {/* Profile Button - Top Right (Left of History) */}
+      {/* Profile Button - Top Right (Left of History) */}
+      <Button
+        variant="outline"
+        onClick={() => router.push('/profiles')}
+        className="border-primary/30 hover:border-primary bg-background/80 fixed top-4 right-48 z-50 backdrop-blur-sm"
+      >
+        <UserCircle className="mr-2 h-4 w-4" />
+        Profils
+      </Button>
+
+      {/* Settings Button - Top Right (Left of History) */}
+      <SettingsButton
+        onClick={() => setIsSettingsOpen(true)}
+        className="fixed top-4 right-28 z-50"
+      />
 
       {/* History Button - Top Right */}
       <Button
@@ -96,7 +184,17 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="animate-in fade-in slide-in-from-bottom-10 w-full max-w-md space-y-8 delay-200 duration-1000">
+      <div className="animate-in fade-in slide-in-from-bottom-10 w-full max-w-md space-y-6 delay-200 duration-1000">
+        {/* Saved Game Card */}
+        <AnimatePresence>
+          {hasSavedGame && (
+            <SavedGameCard
+              onResume={handleResumeSavedGame}
+              onDelete={handleDeleteSavedGame}
+            />
+          )}
+        </AnimatePresence>
+
         <Card className="border-primary/20 bg-card/50 shadow-[0_0_50px_-12px_var(--primary)] backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-center text-2xl">
@@ -107,6 +205,7 @@ export default function Home() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+
             <Button
               onClick={createRoom}
               disabled={isCreating}
@@ -137,6 +236,25 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Premium Modal */}
+      <PremiumModal
+        isOpen={isPremiumOpen}
+        onClose={() => setIsPremiumOpen(false)}
+      />
+
+      {/* Help Modal */}
+      <HelpModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
     </main>
   )
 }

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { Skull, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Skull, X, CheckCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface AbandonOverlayProps {
@@ -29,10 +29,20 @@ export default function AbandonOverlay({
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.9, opacity: 0, y: 20 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="bg-card border-2 border-red-500 rounded-2xl p-6 max-w-sm w-full shadow-[0_0_50px_rgba(239,68,68,0.3)] text-center space-y-5"
+                        className="relative bg-card border-2 border-red-500 rounded-2xl p-6 max-w-sm w-full shadow-[0_0_50px_rgba(239,68,68,0.3)] text-center space-y-5"
                     >
+                        {/* Close Button (Left Top) */}
+                        <Button
+                            onClick={onCancel}
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 left-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full"
+                        >
+                            <X className="w-6 h-6" />
+                        </Button>
+
                         {/* Icon */}
-                        <div className="relative mx-auto w-16 h-16">
+                        <div className="relative mx-auto w-16 h-16 pt-2">
                             <motion.div
                                 animate={{
                                     boxShadow: [
@@ -74,14 +84,7 @@ export default function AbandonOverlay({
 
                         {/* Actions */}
                         <div className="flex flex-col gap-3 pt-2">
-                            <Button
-                                onClick={onCancel}
-                                variant="outline"
-                                className="w-full font-bold py-6 border-white/20 hover:border-white/40 hover:bg-white/5"
-                            >
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Revenir au gage
-                            </Button>
+                            {/* Only Confirm Button left */}
                             <Button
                                 onClick={onConfirm}
                                 variant="destructive"

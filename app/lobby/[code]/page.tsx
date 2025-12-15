@@ -1,16 +1,16 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import GameSettingsPanel from '@/components/lobby/GameSettings'
 import { Button } from '@/components/ui/button'
 import { Play } from 'lucide-react'
-import { useLobbyLogic } from '@/hooks/useLobbyLogic'
+import { useLobbyLogicV2 } from '@/hooks/useLobbyLogicV2' // V2 Hook
 
 // New UI Components
 import LobbyHeader from '@/components/lobby/LobbyHeader'
 import DurationCard from '@/components/lobby/DurationCard'
-import PlayerList from '@/components/lobby/PlayerList'
+import LobbyPlayerList from '@/components/lobby/LobbyPlayerList' // V2 Component
 import LobbySkeleton from '@/components/lobby/LobbySkeleton'
 
 export default function LobbyPage() {
@@ -20,25 +20,22 @@ export default function LobbyPage() {
   const {
     session,
     isLoading,
-    showAddPlayer,
-    setShowAddPlayer,
-    newPlayerName,
-    setNewPlayerName,
+    lobbyPlayers,
+    playerCount,
+    needsProfileCreation,
     roundsTotal,
     isProgressiveMode,
-    handleAddPlayer,
     handleSettingsUpdate,
-    updateSessionExtraSettings,
-    handleDeletePlayer,
+    updateRoundsAndMode,
     startGame,
     calculateTimeEstimation,
-  } = useLobbyLogic(code)
+    canStartGame,
+    startGameError,
+  } = useLobbyLogicV2(code)
 
   const timeEst = calculateTimeEstimation()
-
   const router = useRouter()
 
-  // Task 7.3: Instant Shell Interface - Show skeleton immediately
   if (isLoading) {
     return <LobbySkeleton />
   }
@@ -59,7 +56,6 @@ export default function LobbyPage() {
     )
   }
 
-  // Task 7.3: Smooth Transition Animation - Fade in content when data loads
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -76,18 +72,12 @@ export default function LobbyPage() {
             isProgressiveMode={isProgressiveMode}
             session={session}
             timeEst={timeEst}
-            onUpdate={updateSessionExtraSettings}
+            playerCount={playerCount}
+            onUpdate={updateRoundsAndMode}
           />
 
-          <PlayerList
-            session={session}
-            showAddPlayer={showAddPlayer}
-            setShowAddPlayer={setShowAddPlayer}
-            newPlayerName={newPlayerName}
-            setNewPlayerName={setNewPlayerName}
-            onAddPlayer={handleAddPlayer}
-            onDeletePlayer={handleDeletePlayer}
-          />
+          {/* New Profile-Aware Player List */}
+          <LobbyPlayerList />
         </div>
 
         <GameSettingsPanel
@@ -102,7 +92,7 @@ export default function LobbyPage() {
           onUpdate={handleSettingsUpdate}
           isProgressiveMode={isProgressiveMode}
           onProgressiveModeChange={(enabled) =>
-            updateSessionExtraSettings(roundsTotal, enabled)
+            updateRoundsAndMode(roundsTotal, enabled)
           }
         />
       </div>
@@ -110,13 +100,13 @@ export default function LobbyPage() {
       <div className="bg-background/80 border-border fixed bottom-0 left-0 w-full border-t p-4 backdrop-blur-lg">
         <Button
           onClick={startGame}
-          disabled={!session || session.players.length < 2}
+          disabled={!canStartGame}
           className="from-primary to-secondary w-full bg-gradient-to-r py-6 text-xl font-bold shadow-[0_0_20px_var(--primary)] hover:opacity-90 disabled:opacity-50 disabled:shadow-none"
         >
           <Play className="mr-2 h-6 w-6 fill-current" />
-          {session && session.players.length < 2
-            ? '2 JOUEURS MINIMUM'
-            : 'LANCER LA PARTIE'}
+          {startGameError ? startGameError.toUpperCase() :
+            (playerCount === 1 ? 'JOUER SEUL' : 'LANCER LA PARTIE')
+          }
         </Button>
       </div>
     </motion.div>

@@ -141,7 +141,7 @@ export default function GameSidebar({
                                                     : 'border-white/20'
                                             )}
                                         >
-                                            <AvatarImage src={player.avatar} />
+                                            <AvatarImage src={player.avatar || undefined} />
                                             <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20 text-xs font-bold text-white">
                                                 {player.name[0]}
                                             </AvatarFallback>
@@ -301,7 +301,7 @@ export default function GameSidebar({
                                                 : 'border-white/20'
                                         )}
                                     >
-                                        <AvatarImage src={player.avatar} />
+                                        <AvatarImage src={player.avatar || undefined} />
                                         <AvatarFallback className="bg-primary/20 text-[10px] font-bold text-white">
                                             {player.name[0]}
                                         </AvatarFallback>
