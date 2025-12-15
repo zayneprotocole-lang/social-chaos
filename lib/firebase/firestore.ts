@@ -4,7 +4,7 @@ import {
   CACHE_SIZE_UNLIMITED,
   Firestore,
 } from 'firebase/firestore'
-import { getFirebaseApp } from '@/firebase'
+import { getFirebaseApp } from '@/lib/firebase-client'
 
 let _db: Firestore | null = null
 

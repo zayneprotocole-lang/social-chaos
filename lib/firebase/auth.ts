@@ -4,7 +4,7 @@ import {
   onAuthStateChanged,
   Auth,
 } from 'firebase/auth'
-import { getFirebaseApp } from '@/firebase'
+import { getFirebaseApp } from '@/lib/firebase-client'
 
 let _auth: Auth | null = null
 
