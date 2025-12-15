@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useSessionQuery } from '@/lib/hooks/useSessionQuery'
+import { useSessionQuery } from '@/hooks/useSessionQuery'
 import { ensureAuthenticated } from '@/lib/firebase/auth'
 import { MOCK_DARES } from '@/lib/constants/dares'
 

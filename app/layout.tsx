@@ -3,8 +3,6 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
-import { VisualEditing } from 'next-sanity/visual-editing'
-import { draftMode } from 'next/headers'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -32,13 +30,11 @@ export const viewport: Viewport = {
   themeColor: '#000000',
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const { isEnabled } = await draftMode()
-
   return (
     <html lang="fr">
       <body
@@ -47,7 +43,6 @@ export default async function RootLayout({
         <QueryProvider>
           {children}
           <LoadingScreen />
-          {isEnabled && <VisualEditing />}
         </QueryProvider>
       </body>
     </html>

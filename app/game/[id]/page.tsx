@@ -26,15 +26,24 @@ const GameEndScreen = dynamic(() => import('@/components/game/GameEndScreen'))
 const OptionsMenu = dynamic(() => import('@/components/game/OptionsMenu'))
 const AbandonOverlay = dynamic(() => import('@/components/game/AbandonOverlay'))
 const SuccessPopup = dynamic(() => import('@/components/game/SuccessPopup'))
-const AccompagnementModal = dynamic(() => import('@/components/game/AccompagnementModal').then(m => ({ default: m.AccompagnementModal })))
+const AccompagnementModal = dynamic(() =>
+  import('@/components/game/AccompagnementModal').then((m) => ({
+    default: m.AccompagnementModal,
+  }))
+)
 
 export default function GamePage() {
   const params = useParams()
-  const { session, currentPlayer, isGameFinished, MOCK_DARES, isLoading, isFetching } =
-    useGameSession(params.id as string)
+  const {
+    session,
+    currentPlayer,
+    isGameFinished,
+    MOCK_DARES,
+    isLoading,
+    isFetching,
+  } = useGameSession(params.id as string)
 
   const {
-    isCardVisible,
     isCardRevealed,
     gameStatus,
     controlStep,
@@ -84,27 +93,39 @@ export default function GamePage() {
   }, [session?.currentDare?.id, setIsSwapping])
 
   // Accompagnement state
-  const [isAccompagnementModalOpen, setIsAccompagnementModalOpen] = useState(false)
-  const [accompagnementUsedThisGame, setAccompagnementUsedThisGame] = useState(false)
+  const [isAccompagnementModalOpen, setIsAccompagnementModalOpen] =
+    useState(false)
+  const [accompagnementUsedThisGame, setAccompagnementUsedThisGame] =
+    useState(false)
   const [isAccompagnementActive, setIsAccompagnementActive] = useState(false)
-  const [accompagnateurName, setAccompagnateurName] = useState<string | null>(null)
-  const [isTimerPausedForAccompagnement, setIsTimerPausedForAccompagnement] = useState(false)
+  const [accompagnateurName, setAccompagnateurName] = useState<string | null>(
+    null
+  )
+  const [isTimerPausedForAccompagnement, setIsTimerPausedForAccompagnement] =
+    useState(false)
   const [timerResetTrigger, setTimerResetTrigger] = useState(0) // Increment to force timer reset
 
-  const links = useMentorEleveStore(s => s.links)
-  const markAccompagnementUsed = useMentorEleveStore(s => s.markAccompagnementUsed)
+  // Fallback time for when startedAt is not available (computed once via lazy initializer)
+  const [fallbackTime] = useState(() => Date.now())
+
+  const links = useMentorEleveStore((s) => s.links)
+  const markAccompagnementUsed = useMentorEleveStore(
+    (s) => s.markAccompagnementUsed
+  )
 
   // Find active duo for current player
   // Only show links that existed BEFORE this game started (prevent mid-game bonus appearing)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const accompagnementInfo = useMemo(() => {
     if (!currentPlayer?.profileId || !session?.players) return null
 
     // Get game start time (Firestore Timestamp or Date)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const startedAt = session.startedAt as any
-    const gameStartTime = startedAt instanceof Date
-      ? startedAt.getTime()
-      : startedAt?.toMillis?.() || Date.now()
+    const gameStartTime =
+      startedAt instanceof Date
+        ? startedAt.getTime()
+        : startedAt?.toMillis?.() || fallbackTime
 
     for (const link of links) {
       // Skip consumed links or links created AFTER this game started
@@ -115,22 +136,35 @@ export default function GamePage() {
       const isEleve = link.eleveProfileId === currentPlayer.profileId
 
       if (isMentor || isEleve) {
-        const partnerProfileId = isMentor ? link.eleveProfileId : link.mentorProfileId
-        const partner = session.players.find(p => p.profileId === partnerProfileId)
+        const partnerProfileId = isMentor
+          ? link.eleveProfileId
+          : link.mentorProfileId
+        const partner = session.players.find(
+          (p) => p.profileId === partnerProfileId
+        )
 
         if (partner) {
-          const alreadyUsed = isMentor ? link.mentorUsedAccompagnement : link.eleveUsedAccompagnement
+          const alreadyUsed = isMentor
+            ? link.mentorUsedAccompagnement
+            : link.eleveUsedAccompagnement
           return {
             linkId: link.id,
             isMentor,
             partnerName: partner.name,
-            used: alreadyUsed || accompagnementUsedThisGame
+            used: alreadyUsed || accompagnementUsedThisGame,
           }
         }
       }
     }
     return null
-  }, [currentPlayer?.profileId, session?.players, session?.startedAt, links, accompagnementUsedThisGame])
+  }, [
+    currentPlayer?.profileId,
+    session?.players,
+    session?.startedAt,
+    links,
+    accompagnementUsedThisGame,
+    fallbackTime,
+  ])
 
   // Open modal and PAUSE timer
   const handleAccompagnement = () => {
@@ -148,7 +182,10 @@ export default function GamePage() {
   // Invoke - RESET timer, mark action used, grey out other actions
   const handleInvokeAccompagnement = () => {
     if (accompagnementInfo) {
-      markAccompagnementUsed(accompagnementInfo.linkId, accompagnementInfo.isMentor)
+      markAccompagnementUsed(
+        accompagnementInfo.linkId,
+        accompagnementInfo.isMentor
+      )
       setAccompagnementUsedThisGame(true)
       setIsAccompagnementActive(true)
       setAccompagnateurName(accompagnementInfo.partnerName)
@@ -156,7 +193,7 @@ export default function GamePage() {
     setIsAccompagnementModalOpen(false)
     setIsTimerPausedForAccompagnement(false)
     // Trigger timer reset by incrementing the reset trigger
-    setTimerResetTrigger(prev => prev + 1)
+    setTimerResetTrigger((prev) => prev + 1)
   }
 
   // Reset accompagnement active state on turn change
@@ -181,7 +218,6 @@ export default function GamePage() {
 
   // Check both local state (immediate) and Firestore state (synced)
   if (isGameFinished || isLocalGameFinished) {
-    console.log('🏁 Showing GameEndScreen:', { isGameFinished, isLocalGameFinished })
     return <GameEndScreen players={session.players} session={session} />
   }
 
@@ -215,7 +251,7 @@ export default function GamePage() {
       />
 
       {/* Main Game Area - Adjusted padding for desktop sidebar */}
-      <div className="relative flex flex-1 flex-col items-center justify-center space-y-6 p-4 md:pr-72 pb-48 md:pb-4">
+      <div className="relative flex flex-1 flex-col items-center justify-center space-y-6 p-4 pb-48 md:pr-72 md:pb-4">
         {/* Background Effects */}
         <div className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
 
@@ -226,17 +262,23 @@ export default function GamePage() {
             {gameStatus === 'PLAYING' && controlStep === 'ACTION' && (
               <Button
                 onClick={handleAbandon}
-                variant={(session?.settings.difficulty || 1) === 1 ? "outline" : "destructive"}
+                variant={
+                  (session?.settings.difficulty || 1) === 1
+                    ? 'outline'
+                    : 'destructive'
+                }
                 size="sm"
                 className={cn(
-                  "absolute -top-12 right-0 px-3 py-1 text-xs",
+                  'absolute -top-12 right-0 px-3 py-1 text-xs',
                   (session?.settings.difficulty || 1) === 1
-                    ? "border-white/30 hover:border-white/50"
-                    : "shadow-[0_0_10px_var(--destructive)]"
+                    ? 'border-white/30 hover:border-white/50'
+                    : 'shadow-[0_0_10px_var(--destructive)]'
                 )}
               >
                 <Skull className="mr-1 h-3 w-3" />
-                {(session?.settings.difficulty || 1) === 1 ? 'PASSER' : 'ABANDON'}
+                {(session?.settings.difficulty || 1) === 1
+                  ? 'PASSER'
+                  : 'ABANDON'}
               </Button>
             )}
             {/* Timer only for difficulty >= 2 */}
@@ -244,7 +286,9 @@ export default function GamePage() {
               <GameTimer
                 key={`${session.turnCounter}-${timerResetTrigger}`} // Force remount on turn change or invoke
                 duration={session.settings.timerDuration}
-                isActive={isTimerActive && !isOnGoing && !isTimerPausedForAccompagnement}
+                isActive={
+                  isTimerActive && !isOnGoing && !isTimerPausedForAccompagnement
+                }
                 onComplete={handleTimerComplete}
                 isGolden={isOnGoing}
               />
@@ -254,11 +298,13 @@ export default function GamePage() {
 
         {/* Current Player Indicator */}
         {session.currentDare && (
-          <div className="text-center mb-4 z-30">
+          <div className="z-30 mb-4 text-center">
             <p className="text-lg font-bold text-white/90">
               <span className="text-primary text-xl">{currentPlayer.name}</span>
             </p>
-            <p className="text-sm text-white/60 animate-pulse">à toi de jouer !</p>
+            <p className="animate-pulse text-sm text-white/60">
+              à toi de jouer !
+            </p>
           </div>
         )}
 
@@ -270,9 +316,11 @@ export default function GamePage() {
 
           {/* Accompagnement Active Indicator */}
           {isAccompagnementActive && accompagnateurName && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-3 animate-pulse">
+            <div className="mt-4 flex animate-pulse items-center justify-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3 text-indigo-400">
               <span className="text-xl">🤝</span>
-              <span className="font-bold">Accompagné par {accompagnateurName}</span>
+              <span className="font-bold">
+                Accompagné par {accompagnateurName}
+              </span>
             </div>
           )}
         </div>
@@ -292,7 +340,9 @@ export default function GamePage() {
             accompagnementUsed={accompagnementInfo?.used}
             accompagnementTargetName={accompagnementInfo?.partnerName}
             onAccompagnement={handleAccompagnement}
-            actionsDisabled={isAccompagnementModalOpen || isAccompagnementActive}
+            actionsDisabled={
+              isAccompagnementModalOpen || isAccompagnementActive
+            }
           />
         )}
 

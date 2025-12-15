@@ -2,7 +2,7 @@
 
 /**
  * Composant de liste des joueurs pour le lobby (refactorisé avec profils)
- * 
+ *
  * Features:
  * - Affiche les joueurs du lobby (profils + invités)
  * - Avatar avec initiales si pas de photo
@@ -14,17 +14,17 @@
 import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    Crown,
-    Trash2,
-    UserPlus,
-    Users,
-    User,
-    X,
-    Check,
-    UserCircle,
-    Clock,
-    Save,
-    Handshake
+  Crown,
+  Trash2,
+  UserPlus,
+  Users,
+  User,
+  X,
+  Check,
+  UserCircle,
+  Clock,
+  Save,
+  Handshake,
 } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -34,11 +34,11 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
 import {
-    useLobbyStore,
-    useLobbyPlayers,
-    useIsSoloMode
+  useLobbyStore,
+  useLobbyPlayers,
+  useIsSoloMode,
 } from '@/lib/store/useLobbyStore'
-import { useProfiles, useHostProfile } from '@/lib/store/useProfileStore'
+import { useProfiles } from '@/lib/store/useProfileStore'
 import { useGuestStore } from '@/lib/store/useGuestStore'
 import { useMentorEleveStore } from '@/lib/store/useMentorEleveStore'
 import { LobbyPlayer } from '@/types/lobby'
@@ -51,10 +51,10 @@ import { PlayerPreferencesDialog } from './PlayerPreferencesDialog'
 // ========================================
 
 export interface LobbyPlayerListProps {
-    /** Callback pour ouvrir la gestion des profils */
-    onManageProfiles?: () => void
-    /** Classes CSS additionnelles */
-    className?: string
+  /** Callback pour ouvrir la gestion des profils */
+  onManageProfiles?: () => void
+  /** Classes CSS additionnelles */
+  className?: string
 }
 
 // ========================================
@@ -62,9 +62,9 @@ export interface LobbyPlayerListProps {
 // ========================================
 
 const listItemVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: 20, transition: { duration: 0.2 } },
+  hidden: { opacity: 0, x: -20 },
+  visible: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 20, transition: { duration: 0.2 } },
 }
 
 // ========================================
@@ -72,109 +72,122 @@ const listItemVariants = {
 // ========================================
 
 interface PlayerItemProps {
-    player: LobbyPlayer
-    onRemove: () => void
-    onConvertToProfile: (profile: LocalPlayerProfile) => void
-    canRemove: boolean
-    relationInfo?: { isMentor: boolean; partnerName: string } | null
+  player: LobbyPlayer
+  onRemove: () => void
+  onConvertToProfile: (profile: LocalPlayerProfile) => void
+  canRemove: boolean
+  relationInfo?: { isMentor: boolean; partnerName: string } | null
 }
 
-function PlayerItem({ player, onRemove, onConvertToProfile, canRemove, relationInfo }: PlayerItemProps) {
-    const initials = player.name
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
+function PlayerItem({
+  player,
+  onRemove,
+  onConvertToProfile,
+  canRemove,
+  relationInfo,
+}: PlayerItemProps) {
+  const initials = player.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
 
-    const isGuest = !player.profileId
+  const isGuest = !player.profileId
 
-    return (
-        <motion.div
-            variants={listItemVariants}
-            layout
-            className={`
-        flex items-center justify-between p-3 rounded-xl border transition-all group
-        ${player.isHost
-                    ? 'bg-primary/5 border-primary/30'
-                    : 'bg-background/50 border-border hover:border-primary/30'
-                }
-      `}
+  return (
+    <motion.div
+      variants={listItemVariants}
+      layout
+      className={`group flex items-center justify-between rounded-xl border p-3 transition-all ${
+        player.isHost
+          ? 'bg-primary/5 border-primary/30'
+          : 'bg-background/50 border-border hover:border-primary/30'
+      } `}
+    >
+      {/* Avatar + Info */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <Avatar
+          className={`size-10 ${player.isHost ? 'ring-primary ring-offset-background ring-2 ring-offset-2' : ''}`}
         >
-            {/* Avatar + Info */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-                <Avatar className={`size-10 ${player.isHost ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
-                    {player.avatarUri ? (
-                        <AvatarImage src={player.avatarUri} alt={player.name} />
-                    ) : (
-                        <AvatarFallback className="bg-gradient-to-br from-primary/20 to-secondary/20 text-primary font-bold">
-                            {initials}
-                        </AvatarFallback>
-                    )}
-                </Avatar>
+          {player.avatarUri ? (
+            <AvatarImage src={player.avatarUri} alt={player.name} />
+          ) : (
+            <AvatarFallback className="from-primary/20 to-secondary/20 text-primary bg-gradient-to-br font-bold">
+              {initials}
+            </AvatarFallback>
+          )}
+        </Avatar>
 
-                <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-foreground truncate">
-                            {player.name}
-                        </span>
-                        {isGuest && (
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-dashed opacity-70">
-                                    Invité
-                                </Badge>
-                                <SaveGuestDialog
-                                    guest={player}
-                                    onSaved={onConvertToProfile}
-                                    trigger={
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            className="h-7 px-3 text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 hover:border-indigo-500/50 transition-all hover:scale-105 shadow-sm group-hover:shadow-indigo-500/10"
-                                        >
-                                            <Save className="w-3.5 h-3.5 mr-1.5" />
-                                            Garder ce profil
-                                        </Button>
-                                    }
-                                />
-                            </div>
-                        )}
-                        {!isGuest && player.profileId && (
-                            <PlayerPreferencesDialog profileId={player.profileId} />
-                        )}
-                    </div>
+        <div className="flex min-w-0 flex-col">
+          <div className="flex items-center gap-2">
+            <span className="text-foreground truncate font-bold">
+              {player.name}
+            </span>
+            {isGuest && (
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="border-dashed px-1.5 py-0 text-[10px] opacity-70"
+                >
+                  Invité
+                </Badge>
+                <SaveGuestDialog
+                  guest={player}
+                  onSaved={onConvertToProfile}
+                  trigger={
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 border border-indigo-500/30 bg-indigo-500/10 px-3 text-xs font-semibold text-indigo-400 shadow-sm transition-all group-hover:shadow-indigo-500/10 hover:scale-105 hover:border-indigo-500/50 hover:bg-indigo-500/20"
+                    >
+                      <Save className="mr-1.5 h-3.5 w-3.5" />
+                      Garder ce profil
+                    </Button>
+                  }
+                />
+              </div>
+            )}
+            {!isGuest && player.profileId && (
+              <PlayerPreferencesDialog profileId={player.profileId} />
+            )}
+          </div>
 
-                    {player.isHost && (
-                        <span className="text-[10px] text-primary uppercase font-bold flex items-center gap-1">
-                            <Crown className="size-3" />
-                            Hôte
-                        </span>
-                    )}
+          {player.isHost && (
+            <span className="text-primary flex items-center gap-1 text-[10px] font-bold uppercase">
+              <Crown className="size-3" />
+              Hôte
+            </span>
+          )}
 
-                    {/* Mentor/Élève Relation Badge */}
-                    {relationInfo && (
-                        <span className={`text-[10px] uppercase font-bold flex items-center gap-1 ${relationInfo.isMentor ? 'text-yellow-500' : 'text-indigo-400'
-                            }`}>
-                            <Handshake className="size-3" />
-                            {relationInfo.isMentor ? 'Mentor de' : 'Élève de'} {relationInfo.partnerName}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Remove Button */}
-            <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onRemove}
-                disabled={!canRemove}
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30"
-                title="Retirer de la partie"
+          {/* Mentor/Élève Relation Badge */}
+          {relationInfo && (
+            <span
+              className={`flex items-center gap-1 text-[10px] font-bold uppercase ${
+                relationInfo.isMentor ? 'text-yellow-500' : 'text-indigo-400'
+              }`}
             >
-                <Trash2 className="size-4" />
-            </Button>
-        </motion.div>
-    )
+              <Handshake className="size-3" />
+              {relationInfo.isMentor ? 'Mentor de' : 'Élève de'}{' '}
+              {relationInfo.partnerName}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Remove Button */}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onRemove}
+        disabled={!canRemove}
+        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 transition-all group-hover:opacity-100 disabled:opacity-30"
+        title="Retirer de la partie"
+      >
+        <Trash2 className="size-4" />
+      </Button>
+    </motion.div>
+  )
 }
 
 // ========================================
@@ -182,165 +195,181 @@ function PlayerItem({ player, onRemove, onConvertToProfile, canRemove, relationI
 // ========================================
 
 interface AddPlayerPanelProps {
-    onClose: () => void
-    onAddGuest: (name: string) => void
-    onAddProfile: (profile: LocalPlayerProfile) => void
-    existingProfileIds: string[]
+  onClose: () => void
+  onAddGuest: (name: string) => void
+  onAddProfile: (profile: LocalPlayerProfile) => void
+  existingProfileIds: string[]
 }
 
 function AddPlayerPanel({
-    onClose,
-    onAddGuest,
-    onAddProfile,
-    existingProfileIds
+  onClose,
+  onAddGuest,
+  onAddProfile,
+  existingProfileIds,
 }: AddPlayerPanelProps) {
-    const [mode, setMode] = useState<'choose' | 'guest'>('choose')
-    const [guestName, setGuestName] = useState('')
+  const [mode, setMode] = useState<'choose' | 'guest'>('choose')
+  const [guestName, setGuestName] = useState('')
 
-    const profiles = useProfiles()
-    const guests = useGuestStore(s => s.guests)
+  const profiles = useProfiles()
+  const guests = useGuestStore((s) => s.guests)
 
-    const availableProfiles = profiles.filter(p => !existingProfileIds.includes(p.id))
+  const availableProfiles = profiles.filter(
+    (p) => !existingProfileIds.includes(p.id)
+  )
 
-    // Invités récents (< 30 min, triés par date)
-    const recentGuests = [...guests]
-        .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
-        .slice(0, 5)
+  // Invités récents (< 30 min, triés par date)
+  const recentGuests = [...guests]
+    .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+    .slice(0, 5)
 
-    const handleAddGuest = (name: string) => {
-        if (name.trim()) {
-            onAddGuest(name.trim())
-            setGuestName('')
-            onClose()
-        }
+  const handleAddGuest = (name: string) => {
+    if (name.trim()) {
+      onAddGuest(name.trim())
+      setGuestName('')
+      onClose()
     }
+  }
 
-    const handleAddProfile = (profile: LocalPlayerProfile) => {
-        onAddProfile(profile)
-        onClose()
-    }
+  const handleAddProfile = (profile: LocalPlayerProfile) => {
+    onAddProfile(profile)
+    onClose()
+  }
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-        >
-            <div className="p-3 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium text-foreground">
-                        {mode === 'choose' ? 'Ajouter un joueur' : 'Ajouter un invité'}
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={onClose}
-                        className="text-muted-foreground"
-                    >
-                        <X className="size-4" />
-                    </Button>
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="overflow-hidden"
+    >
+      <div className="border-primary/30 from-primary/5 to-secondary/5 rounded-xl border-2 bg-gradient-to-br p-3">
+        {/* Header */}
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-foreground text-sm font-medium">
+            {mode === 'choose' ? 'Ajouter un joueur' : 'Ajouter un invité'}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            className="text-muted-foreground"
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        {mode === 'choose' ? (
+          <div className="space-y-3">
+            {/* Profils disponibles */}
+            {availableProfiles.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-muted-foreground mb-2 text-xs">
+                  Profils enregistrés :
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {availableProfiles.map((profile) => {
+                    const initials = profile.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)
+                    return (
+                      <button
+                        key={profile.id}
+                        onClick={() => handleAddProfile(profile)}
+                        className="border-border bg-background/50 hover:border-primary hover:bg-primary/10 flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all"
+                      >
+                        <Avatar className="size-6">
+                          {profile.avatarUri ? (
+                            <AvatarImage
+                              src={profile.avatarUri}
+                              alt={profile.name}
+                            />
+                          ) : (
+                            <AvatarFallback className="bg-muted text-[10px]">
+                              {initials}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="text-sm font-medium">
+                          {profile.name}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
+              </div>
+            )}
 
-                {mode === 'choose' ? (
-                    <div className="space-y-3">
-                        {/* Profils disponibles */}
-                        {availableProfiles.length > 0 && (
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground mb-2">Profils enregistrés :</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {availableProfiles.map(profile => {
-                                        const initials = profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-                                        return (
-                                            <button
-                                                key={profile.id}
-                                                onClick={() => handleAddProfile(profile)}
-                                                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-background/50 hover:border-primary hover:bg-primary/10 transition-all"
-                                            >
-                                                <Avatar className="size-6">
-                                                    {profile.avatarUri ? (
-                                                        <AvatarImage src={profile.avatarUri} alt={profile.name} />
-                                                    ) : (
-                                                        <AvatarFallback className="text-[10px] bg-muted">
-                                                            {initials}
-                                                        </AvatarFallback>
-                                                    )}
-                                                </Avatar>
-                                                <span className="text-sm font-medium">{profile.name}</span>
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        )}
+            {/* Invités récents */}
+            {recentGuests.length > 0 && (
+              <div className="border-border/50 space-y-1 border-t border-dashed pt-2">
+                <p className="text-muted-foreground mb-2 flex items-center gap-1 text-xs">
+                  <Clock className="size-3" /> Récents :
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {recentGuests.map((guest) => (
+                    <button
+                      key={guest.id}
+                      onClick={() => handleAddGuest(guest.name)}
+                      className="border-muted-foreground/30 bg-background/30 hover:bg-primary/5 hover:border-primary/50 flex items-center gap-2 rounded-full border border-dashed px-3 py-1.5 transition-all"
+                    >
+                      <span className="text-foreground/80 text-sm">
+                        {guest.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                        {/* Invités récents */}
-                        {recentGuests.length > 0 && (
-                            <div className="space-y-1 pt-2 border-t border-dashed border-border/50">
-                                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                                    <Clock className="size-3" /> Récents :
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {recentGuests.map(guest => (
-                                        <button
-                                            key={guest.id}
-                                            onClick={() => handleAddGuest(guest.name)}
-                                            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-dashed border-muted-foreground/30 bg-background/30 hover:bg-primary/5 hover:border-primary/50 transition-all"
-                                        >
-                                            <span className="text-sm text-foreground/80">{guest.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Ou ajouter un invité */}
-                        <div className="border-t border-border pt-2">
-                            <button
-                                onClick={() => setMode('guest')}
-                                className="w-full flex items-center justify-center gap-2 p-2 rounded-lg border border-dashed border-muted-foreground/30 hover:border-primary hover:bg-primary/5 transition-all text-sm text-muted-foreground hover:text-foreground"
-                            >
-                                <UserCircle className="size-4" />
-                                Ajouter un invité (manuel)
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    /* Mode invité */
-                    <div className="flex gap-2">
-                        <Input
-                            autoFocus
-                            placeholder="Prénom du joueur..."
-                            value={guestName}
-                            onChange={(e) => setGuestName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddGuest(guestName)}
-                            className="flex-1 h-9 bg-background/50"
-                        />
-                        <Button
-                            onClick={() => handleAddGuest(guestName)}
-                            disabled={!guestName.trim()}
-                            size="sm"
-                            className="h-9 px-3"
-                        >
-                            <Check className="size-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                setMode('choose')
-                                setGuestName('')
-                            }}
-                            className="h-9 px-3"
-                        >
-                            <X className="size-4" />
-                        </Button>
-                    </div>
-                )}
+            {/* Ou ajouter un invité */}
+            <div className="border-border border-t pt-2">
+              <button
+                onClick={() => setMode('guest')}
+                className="border-muted-foreground/30 hover:border-primary hover:bg-primary/5 text-muted-foreground hover:text-foreground flex w-full items-center justify-center gap-2 rounded-lg border border-dashed p-2 text-sm transition-all"
+              >
+                <UserCircle className="size-4" />
+                Ajouter un invité (manuel)
+              </button>
             </div>
-        </motion.div>
-    )
+          </div>
+        ) : (
+          /* Mode invité */
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              placeholder="Prénom du joueur..."
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddGuest(guestName)}
+              className="bg-background/50 h-9 flex-1"
+            />
+            <Button
+              onClick={() => handleAddGuest(guestName)}
+              disabled={!guestName.trim()}
+              size="sm"
+              className="h-9 px-3"
+            >
+              <Check className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMode('choose')
+                setGuestName('')
+              }}
+              className="h-9 px-3"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
 }
 
 // ========================================
@@ -348,180 +377,198 @@ function AddPlayerPanel({
 // ========================================
 
 export function LobbyPlayerList({
-    onManageProfiles,
-    className = ''
+  onManageProfiles,
+  className = '',
 }: LobbyPlayerListProps) {
-    // Store
-    const players = useLobbyPlayers()
-    const isSoloMode = useIsSoloMode()
-    const removePlayer = useLobbyStore(s => s.removePlayer)
-    const addPlayerFromProfile = useLobbyStore(s => s.addPlayerFromProfile)
-    const addGuestPlayer = useLobbyStore(s => s.addGuestPlayer)
+  // Store
+  const players = useLobbyPlayers()
+  const isSoloMode = useIsSoloMode()
+  const removePlayer = useLobbyStore((s) => s.removePlayer)
+  const addPlayerFromProfile = useLobbyStore((s) => s.addPlayerFromProfile)
+  const addGuestPlayer = useLobbyStore((s) => s.addGuestPlayer)
 
-    // Mentor/Élève relations
-    const links = useMentorEleveStore(s => s.links)
+  // Mentor/Élève relations
+  const links = useMentorEleveStore((s) => s.links)
 
-    // State
-    const [showAddPanel, setShowAddPanel] = useState(false)
+  // State
+  const [showAddPanel, setShowAddPanel] = useState(false)
 
-    // Guest Store Actions
-    const addGuestStore = useGuestStore(s => s.addGuest)
-    const removeGuestByName = useGuestStore(s => s.removeGuestByName)
-    const cleanupExpiredGuests = useGuestStore(s => s.cleanupExpiredGuests)
+  // Guest Store Actions
+  const addGuestStore = useGuestStore((s) => s.addGuest)
+  const removeGuestByName = useGuestStore((s) => s.removeGuestByName)
+  const cleanupExpiredGuests = useGuestStore((s) => s.cleanupExpiredGuests)
 
-    // Cleanup expired guests on mount
-    useEffect(() => {
-        cleanupExpiredGuests()
-    }, [cleanupExpiredGuests])
+  // Cleanup expired guests on mount
+  useEffect(() => {
+    cleanupExpiredGuests()
+  }, [cleanupExpiredGuests])
 
-    /**
-     * Retire un joueur
-     */
-    const handleRemovePlayer = useCallback((playerId: string) => {
-        removePlayer(playerId)
-    }, [removePlayer])
+  /**
+   * Retire un joueur
+   */
+  const handleRemovePlayer = useCallback(
+    (playerId: string) => {
+      removePlayer(playerId)
+    },
+    [removePlayer]
+  )
 
-    /**
-     * Ajoute depuis un profil
-     */
-    const handleAddFromProfile = useCallback((profile: LocalPlayerProfile) => {
-        addPlayerFromProfile(profile)
-    }, [addPlayerFromProfile])
+  /**
+   * Ajoute depuis un profil
+   */
+  const handleAddFromProfile = useCallback(
+    (profile: LocalPlayerProfile) => {
+      addPlayerFromProfile(profile)
+    },
+    [addPlayerFromProfile]
+  )
 
-    /**
-     * Ajoute un invité
-     */
-    const handleAddGuest = useCallback((name: string) => {
-        addGuestPlayer(name)
-        addGuestStore(name)
-    }, [addGuestPlayer, addGuestStore])
+  /**
+   * Ajoute un invité
+   */
+  const handleAddGuest = useCallback(
+    (name: string) => {
+      addGuestPlayer(name)
+      addGuestStore(name)
+    },
+    [addGuestPlayer, addGuestStore]
+  )
 
-    /**
-     * Conversion Invité -> Profil
-     */
-    const handleGuestToProfile = useCallback((guestId: string, newProfile: LocalPlayerProfile, guestName: string) => {
-        handleRemovePlayer(guestId)
-        addPlayerFromProfile(newProfile)
-        removeGuestByName(guestName)
-    }, [handleRemovePlayer, addPlayerFromProfile, removeGuestByName])
+  /**
+   * Conversion Invité -> Profil
+   */
+  const handleGuestToProfile = useCallback(
+    (guestId: string, newProfile: LocalPlayerProfile, guestName: string) => {
+      handleRemovePlayer(guestId)
+      addPlayerFromProfile(newProfile)
+      removeGuestByName(guestName)
+    },
+    [handleRemovePlayer, addPlayerFromProfile, removeGuestByName]
+  )
 
-    // IDs des profils déjà dans le lobby
-    const existingProfileIds = players
-        .filter(p => p.profileId)
-        .map(p => p.profileId!)
+  // IDs des profils déjà dans le lobby
+  const existingProfileIds = players
+    .filter((p) => p.profileId)
+    .map((p) => p.profileId!)
 
-    // Compute active duos in this lobby
-    const getPlayerRelation = useCallback((profileId: string | undefined) => {
-        if (!profileId) return null
+  // Compute active duos in this lobby
+  const getPlayerRelation = useCallback(
+    (profileId: string | undefined) => {
+      if (!profileId) return null
 
-        for (const link of links) {
-            // Skip consumed links
-            if (link.isConsumed) continue
+      for (const link of links) {
+        // Skip consumed links
+        if (link.isConsumed) continue
 
-            const partnerProfileId = link.mentorProfileId === profileId
-                ? link.eleveProfileId
-                : link.eleveProfileId === profileId
-                    ? link.mentorProfileId
-                    : null
+        const partnerProfileId =
+          link.mentorProfileId === profileId
+            ? link.eleveProfileId
+            : link.eleveProfileId === profileId
+              ? link.mentorProfileId
+              : null
 
-            if (partnerProfileId && existingProfileIds.includes(partnerProfileId)) {
-                const isMentor = link.mentorProfileId === profileId
-                const partner = players.find(p => p.profileId === partnerProfileId)
-                return { isMentor, partnerName: partner?.name || 'Inconnu' }
-            }
+        if (partnerProfileId && existingProfileIds.includes(partnerProfileId)) {
+          const isMentor = link.mentorProfileId === profileId
+          const partner = players.find((p) => p.profileId === partnerProfileId)
+          return { isMentor, partnerName: partner?.name || 'Inconnu' }
         }
-        return null
-    }, [links, existingProfileIds, players])
+      }
+      return null
+    },
+    [links, existingProfileIds, players]
+  )
 
-    return (
-        <Card className={`bg-card/50 border-primary/20 ${className}`}>
-            <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Users className="size-5 text-primary" />
-                        <span>Joueurs</span>
-                        <Badge variant="secondary" className="ml-1">
-                            {players.length}
-                        </Badge>
-                    </div>
+  return (
+    <Card className={`bg-card/50 border-primary/20 ${className}`}>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="text-primary size-5" />
+            <span>Joueurs</span>
+            <Badge variant="secondary" className="ml-1">
+              {players.length}
+            </Badge>
+          </div>
 
-                    {/* Info mode solo */}
-                    {isSoloMode && players.length > 0 && (
-                        <Badge className="bg-secondary/20 text-secondary border-secondary/30">
-                            Mode Solo
-                        </Badge>
-                    )}
-                </CardTitle>
-            </CardHeader>
+          {/* Info mode solo */}
+          {isSoloMode && players.length > 0 && (
+            <Badge className="bg-secondary/20 text-secondary border-secondary/30">
+              Mode Solo
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
 
-            <CardContent className="space-y-2">
-                {/* Liste des joueurs */}
-                <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                        {players.map((player) => (
-                            <PlayerItem
-                                key={player.id}
-                                player={player}
-                                onRemove={() => handleRemovePlayer(player.id)}
-                                onConvertToProfile={(p) => handleGuestToProfile(player.id, p, player.name)}
-                                canRemove={true}
-                                relationInfo={getPlayerRelation(player.profileId)}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </div>
+      <CardContent className="space-y-2">
+        {/* Liste des joueurs */}
+        <div className="space-y-2">
+          <AnimatePresence mode="popLayout">
+            {players.map((player) => (
+              <PlayerItem
+                key={player.id}
+                player={player}
+                onRemove={() => handleRemovePlayer(player.id)}
+                onConvertToProfile={(p) =>
+                  handleGuestToProfile(player.id, p, player.name)
+                }
+                canRemove={true}
+                relationInfo={getPlayerRelation(player.profileId)}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
 
-                {/* État vide */}
-                {players.length === 0 && !showAddPanel && (
-                    <div className="text-center py-8">
-                        <User className="size-10 mx-auto mb-2 text-muted-foreground/50" />
-                        <p className="text-muted-foreground text-sm italic">
-                            Aucun joueur. Ajoutez des participants !
-                        </p>
-                    </div>
-                )}
+        {/* État vide */}
+        {players.length === 0 && !showAddPanel && (
+          <div className="py-8 text-center">
+            <User className="text-muted-foreground/50 mx-auto mb-2 size-10" />
+            <p className="text-muted-foreground text-sm italic">
+              Aucun joueur. Ajoutez des participants !
+            </p>
+          </div>
+        )}
 
-                {/* Panel d'ajout */}
-                <AnimatePresence>
-                    {showAddPanel && (
-                        <AddPlayerPanel
-                            onClose={() => setShowAddPanel(false)}
-                            onAddGuest={handleAddGuest}
-                            onAddProfile={handleAddFromProfile}
-                            existingProfileIds={existingProfileIds}
-                        />
-                    )}
-                </AnimatePresence>
+        {/* Panel d'ajout */}
+        <AnimatePresence>
+          {showAddPanel && (
+            <AddPlayerPanel
+              onClose={() => setShowAddPanel(false)}
+              onAddGuest={handleAddGuest}
+              onAddProfile={handleAddFromProfile}
+              existingProfileIds={existingProfileIds}
+            />
+          )}
+        </AnimatePresence>
 
-                {/* Bouton Ajouter */}
-                {!showAddPanel && (
-                    <motion.button
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        onClick={() => setShowAddPanel(true)}
-                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 transition-all duration-300 group"
-                    >
-                        <div className="size-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg group-hover:shadow-primary/50">
-                            <UserPlus className="size-4 text-white" />
-                        </div>
-                        <span className="text-sm font-bold text-primary/70 group-hover:text-primary uppercase tracking-wide">
-                            Ajouter un joueur
-                        </span>
-                    </motion.button>
-                )}
+        {/* Bouton Ajouter */}
+        {!showAddPanel && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => setShowAddPanel(true)}
+            className="border-primary/40 hover:border-primary hover:bg-primary/5 group flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed p-3 transition-all duration-300"
+          >
+            <div className="from-primary to-secondary group-hover:shadow-primary/50 flex size-8 items-center justify-center rounded-full bg-gradient-to-br shadow-lg transition-transform group-hover:scale-110">
+              <UserPlus className="size-4 text-white" />
+            </div>
+            <span className="text-primary/70 group-hover:text-primary text-sm font-bold tracking-wide uppercase">
+              Ajouter un joueur
+            </span>
+          </motion.button>
+        )}
 
-                {/* Lien vers gestion des profils */}
-                {onManageProfiles && (
-                    <button
-                        onClick={onManageProfiles}
-                        className="w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors py-2"
-                    >
-                        Gérer les profils enregistrés →
-                    </button>
-                )}
-            </CardContent>
-        </Card>
-    )
+        {/* Lien vers gestion des profils */}
+        {onManageProfiles && (
+          <button
+            onClick={onManageProfiles}
+            className="text-muted-foreground hover:text-primary w-full py-2 text-center text-xs transition-colors"
+          >
+            Gérer les profils enregistrés →
+          </button>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 export default LobbyPlayerList

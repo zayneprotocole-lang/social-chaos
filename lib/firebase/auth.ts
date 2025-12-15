@@ -1,48 +1,72 @@
-import { getAuth, signInAnonymously as firebaseSignInAnonymously, onAuthStateChanged } from 'firebase/auth'
-import { app } from '@/firebase'
+import {
+  getAuth,
+  signInAnonymously as firebaseSignInAnonymously,
+  onAuthStateChanged,
+  Auth,
+} from 'firebase/auth'
+import { getFirebaseApp } from '@/firebase'
+
+let _auth: Auth | null = null
 
 /**
- * Centralized Firebase Auth instance
+ * Get Firebase Auth instance (client-side only, lazy initialization)
  */
-export const auth = getAuth(app)
+export function getAuthInstance(): Auth {
+  if (typeof window === 'undefined') {
+    throw new Error('Firebase Auth should only be accessed on the client side')
+  }
+
+  if (_auth) {
+    return _auth
+  }
+
+  _auth = getAuth(getFirebaseApp())
+  return _auth
+}
+
+/**
+ * @deprecated Use getAuthInstance() instead for SSR-safe access
+ * Kept for backward compatibility
+ */
+export const auth =
+  typeof window !== 'undefined'
+    ? getAuth(getFirebaseApp())
+    : (null as unknown as Auth)
 
 /**
  * Sign in anonymously to Firebase
  * This ensures all users have a uid for Firestore security rules
  */
 export async function signInAnonymously() {
-    try {
-        const result = await firebaseSignInAnonymously(auth)
-        console.log('🔐 Signed in anonymously:', result.user.uid)
-        return result.user
-    } catch (error) {
-        console.error('Failed to sign in anonymously:', error)
-        throw error
-    }
+  try {
+    const authInstance = getAuthInstance()
+    const result = await firebaseSignInAnonymously(authInstance)
+
+    return result.user
+  } catch (error) {
+    console.error('Failed to sign in anonymously:', error)
+    throw error
+  }
 }
 
 /**
  * Get current user or sign in anonymously
  */
 export async function ensureAuthenticated() {
-    return new Promise((resolve, reject) => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            unsubscribe()
-            if (user) {
-                resolve(user)
-            } else {
-                try {
-                    const newUser = await signInAnonymously()
-                    resolve(newUser)
-                } catch (error) {
-                    reject(error)
-                }
-            }
-        })
+  return new Promise((resolve, reject) => {
+    const authInstance = getAuthInstance()
+    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+      unsubscribe()
+      if (user) {
+        resolve(user)
+      } else {
+        try {
+          const newUser = await signInAnonymously()
+          resolve(newUser)
+        } catch (error) {
+          reject(error)
+        }
+      }
     })
-}
-
-// Enable logging in development
-if (process.env.NODE_ENV !== 'production') {
-    console.log('🔐 Firebase Auth initialized')
+  })
 }

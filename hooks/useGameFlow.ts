@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ControlStep } from '@/components/game/Controls'
+import type { ControlStep } from '@/types'
 import { getPenaltyText } from '@/lib/constants/sentences'
 import { Dare, GameSession } from '@/lib/types'
 import { dataAccess } from '@/lib/services/dataAccess'
 import { DIFFICULTY_CONFIG } from '@/lib/constants/config'
 
-
 export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
-
   const [isCardVisible, setIsCardVisible] = useState(false)
   const [gameStatus, setGameStatus] = useState<'IDLE' | 'PLAYING'>('IDLE')
   const [controlStep, setControlStep] = useState<ControlStep>('START')
@@ -42,9 +40,9 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
     // Only proceed if this is a NEW DARE (different from last one)
     // This prevents swap from triggering a new card draw
     if (session.currentDare.id !== lastDareIdRef.current) {
-
       // Check if it's a re-roll (same player, new dare)
-      const isReroll = session.currentTurnPlayerId === lastTurnPlayerIdRef.current
+      const isReroll =
+        session.currentTurnPlayerId === lastTurnPlayerIdRef.current
 
       // Update the refs
       lastDareIdRef.current = session.currentDare.id
@@ -52,24 +50,22 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
 
       if (isReroll) {
         // Reroll: Keep card revealed, just update content (handled by React)
-        // Maybe add a small flash effect later if needed
-        console.log('🎲 Reroll detected - Keeping card revealed')
         setIsCardRevealed(true)
         setGameStatus('PLAYING')
         setControlStep('ACTION')
       } else {
         // New Turn: Reset to IDLE state - player must click to draw card
-        setIsCardVisible(true)        // Show card (face down)
-        setIsCardRevealed(false)      // Not revealed yet
-        setGameStatus('IDLE')         // Waiting for player to draw
-        setControlStep('START')       // Draw phase
+        setIsCardVisible(true) // Show card (face down)
+        setIsCardRevealed(false) // Not revealed yet
+        setGameStatus('IDLE') // Waiting for player to draw
+        setControlStep('START') // Draw phase
         setIsOnGoing(false)
         setIsTimerActive(false)
       }
     }
   }, [
-    session?.currentDare?.id,  // Only react to dare ID changes
-    session?.currentTurnPlayerId // Need player ID to detect reroll
+    session?.currentDare?.id, // Only react to dare ID changes
+    session?.currentTurnPlayerId, // Need player ID to detect reroll
   ])
 
   // Player clicks "TIRER UNE CARTE" to reveal
@@ -109,7 +105,8 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
     if (!session) return
     // Set startedAt to null to indicate timer is paused/stopped on server
     await dataAccess.updateSession(session.id, {
-      startedAt: null
+      startedAt: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any) // Type assertion needed until SessionDocument type is updated to allow null
   }, [session])
 
@@ -147,13 +144,17 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
       const preferredCategories = preferences.want || []
 
       // 1. Filter out AVOID categories
-      let availableDares = MOCK_DARES.filter(dare => {
-        return !dare.categoryTags.some(tag => excludedCategories.includes(tag))
+      let availableDares = MOCK_DARES.filter((dare) => {
+        return !dare.categoryTags.some((tag) =>
+          excludedCategories.includes(tag)
+        )
       })
 
       // Fallback if filtering leaves no dares
       if (availableDares.length === 0) {
-        console.warn(`No dares available for ${nextPlayer.name} with avoids: ${excludedCategories}. Using all dares.`)
+        console.warn(
+          `No dares available for ${nextPlayer.name} with avoids: ${excludedCategories}. Using all dares.`
+        )
         availableDares = MOCK_DARES
       }
 
@@ -175,17 +176,7 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
       // CHECK GAME END CONDITION
       const roundsTotal = Number(session.roundsTotal) || 10
 
-      console.log('Checking Game End:', {
-        roundsCompleted,
-        roundsTotal,
-        playersPlayed,
-        activePlayersCount,
-        condition: roundsCompleted >= roundsTotal
-      })
-
       if (roundsCompleted >= roundsTotal) {
-        console.log('🎮 Game End Condition Met! Saving completion...')
-
         // Set local finished state FIRST for immediate UI update
         setIsLocalGameFinished(true)
 
@@ -195,13 +186,15 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
         // Game Over Logic with Tiebreaker
         // Tiebreaker: If scores are equal, player with MORE remaining action cards wins
         // (fewer actions used = played better without needing crutches)
-        const getActionsRemaining = (player: typeof session.players[0]) =>
-          (player.jokersLeft || 0) + (player.rerollsLeft || 0) + (player.exchangeLeft || 0)
+        const getActionsRemaining = (player: (typeof session.players)[0]) =>
+          (player.jokersLeft || 0) +
+          (player.rerollsLeft || 0) +
+          (player.exchangeLeft || 0)
 
         // V9.6: Separate Competitors vs Adventurers (Disqualified)
         // Adventurers are players who have paused at least once
-        const adventurers = session.players.filter(p => p.hasBeenPaused)
-        const competitors = session.players.filter(p => !p.hasBeenPaused)
+        const adventurers = session.players.filter((p) => p.hasBeenPaused)
+        const competitors = session.players.filter((p) => !p.hasBeenPaused)
 
         // Rank only competitors if possible (fallback to adventurers if everyone paused)
         const rankingPool = competitors.length > 0 ? competitors : adventurers
@@ -217,43 +210,42 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
 
         // Solo mode: only 1 player, no winner/loser concept
         const winner = sortedPlayers[0]
-        const loser = isSoloMode ? null : sortedPlayers[sortedPlayers.length - 1]
-
-        console.log(isSoloMode ? '🎮 Solo Mode Stats:' : '🏆 Final Rankings:', sortedPlayers.map(p => ({
-          name: p.name,
-          score: p.score,
-          actionsRemaining: getActionsRemaining(p)
-        })))
+        const loser = isSoloMode
+          ? null
+          : sortedPlayers[sortedPlayers.length - 1]
 
         const difficultyLabel =
           DIFFICULTY_CONFIG[session.settings.difficulty]?.name || 'Inconnu'
 
         try {
           // 1. PRIORITY: Save to Local Storage FIRST (Offline-First / Guaranteed)
-          console.log('💾 Saving to localStorage...')
           const { localHistory } = await import('@/lib/services/historyStorage')
           localHistory.save({
             winner: {
               id: winner.id,
               name: winner.name,
               avatar: winner.avatar || null,
-              score: winner.score
+              score: winner.score,
             },
             // Solo mode: loser is null, we still need to provide something for the type
-            loser: loser ? {
-              id: loser.id,
-              name: loser.name,
-              avatar: loser.avatar || null,
-              score: loser.score
-            } : null,
+            loser: loser
+              ? {
+                  id: loser.id,
+                  name: loser.name,
+                  avatar: loser.avatar || null,
+                  score: loser.score,
+                }
+              : null,
             otherPlayers: sortedPlayers
-              .filter(p => p.id !== winner.id && (!loser || p.id !== loser.id))
-              .map(p => ({ name: p.name, avatar: p.avatar || null })),
-            adventurers: adventurers.map(p => ({
+              .filter(
+                (p) => p.id !== winner.id && (!loser || p.id !== loser.id)
+              )
+              .map((p) => ({ name: p.name, avatar: p.avatar || null })),
+            adventurers: adventurers.map((p) => ({
               id: p.id,
               name: p.name,
               avatar: p.avatar || null,
-              score: p.score
+              score: p.score,
             })),
             totalRounds: roundsCompleted,
             difficulty: session.settings.difficulty,
@@ -261,7 +253,6 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
             playedAt: Date.now(),
             isSoloMode: isSoloMode, // Flag for history display
           })
-          console.log('✅ LocalHistory saved successfully!')
         } catch (localError) {
           console.error('❌ Failed to save to localStorage:', localError)
         }
@@ -275,26 +266,28 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
               id: winner.id,
               name: winner.name,
               avatar: winner.avatar || null,
-              score: winner.score
+              score: winner.score,
             },
-            loser: loser ? {
-              id: loser.id,
-              name: loser.name,
-              avatar: loser.avatar || null,
-              score: loser.score
-            } : null,
+            loser: loser
+              ? {
+                  id: loser.id,
+                  name: loser.name,
+                  avatar: loser.avatar || null,
+                  score: loser.score,
+                }
+              : null,
             otherPlayers: sortedPlayers
-              .filter(p => {
+              .filter((p) => {
                 if (p.id === winner.id) return false
                 if (loser && p.id === loser.id) return false
                 return true
               })
-              .map(p => ({ name: p.name, avatar: p.avatar || null })),
-            adventurers: adventurers.map(p => ({
+              .map((p) => ({ name: p.name, avatar: p.avatar || null })),
+            adventurers: adventurers.map((p) => ({
               id: p.id,
               name: p.name,
               avatar: p.avatar || null,
-              score: p.score
+              score: p.score,
             })),
             totalRounds: roundsCompleted,
             difficulty: session.settings.difficulty,
@@ -310,21 +303,21 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
             roundsPlayed: roundsCompleted,
             difficultyLabel: difficultyLabel,
           })
-
-          console.log('✅ Firestore history saved successfully!')
         } catch (firestoreError) {
-          console.error('⚠️ Firestore save failed (localStorage still saved):', firestoreError)
+          console.error(
+            '⚠️ Firestore save failed (localStorage still saved):',
+            firestoreError
+          )
         }
 
         // ALWAYS clear saved game and active session on game completion
         try {
-          const { useSavedGameStore } = await import('@/lib/store/useSavedGameStore')
+          const { useSavedGameStore } =
+            await import('@/lib/store/useSavedGameStore')
           const { useGameStore } = await import('@/lib/store/useGameStore')
 
           useSavedGameStore.getState().deleteGame()
           useGameStore.getState().setActiveSession(null, null)
-
-          console.log('🧹 Saved game and active session cleared on game completion')
         } catch (e) {
           console.error('Failed to clear game state:', e)
         }
@@ -335,16 +328,16 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
       }
 
       // Not game end - pick random dare and advance
-      const preferredSubset = finalizedPool.filter(dare =>
-        dare.categoryTags.some(tag => preferredCategories.includes(tag))
+      const preferredSubset = finalizedPool.filter((dare) =>
+        dare.categoryTags.some((tag) => preferredCategories.includes(tag))
       )
       if (preferredSubset.length > 0 && Math.random() < 0.2) {
         finalizedPool = preferredSubset
       }
-      const randomDare = finalizedPool[Math.floor(Math.random() * finalizedPool.length)]
+      const randomDare =
+        finalizedPool[Math.floor(Math.random() * finalizedPool.length)]
 
       // NOTE: Auto-save removed - save only happens via manual "Save and Quit" button
-
 
       const { Timestamp, increment } = await import('firebase/firestore')
 
@@ -354,11 +347,10 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
       if (session.isProgressiveMode) {
         const progress = roundsCompleted / roundsTotal // 0.0 to 1.0
         // Map progress to difficulty: 0-25% = 1, 25-50% = 2, 50-75% = 3, 75-100% = 4
-        newDifficulty = Math.min(4, Math.max(1, Math.floor(progress * 4) + 1)) as 1 | 2 | 3 | 4
-
-        if (newDifficulty !== session.settings.difficulty) {
-          console.log(`🔥 Progressive Mode: Difficulty increased to ${newDifficulty}`)
-        }
+        newDifficulty = Math.min(
+          4,
+          Math.max(1, Math.floor(progress * 4) + 1)
+        ) as 1 | 2 | 3 | 4
       }
 
       await dataAccess.updateGameTurn(session.id, {
@@ -370,9 +362,10 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
         turnCounter: increment(1), // V9.3: Atomic increment to force timer remount
         swapUsedByPlayerIds: [], // V9.4: Reset swap block for new turn
         // Progressive Mode: Update difficulty if changed
-        ...(session.isProgressiveMode && newDifficulty !== session.settings.difficulty && {
-          'settings.difficulty': newDifficulty
-        }),
+        ...(session.isProgressiveMode &&
+          newDifficulty !== session.settings.difficulty && {
+            'settings.difficulty': newDifficulty,
+          }),
       })
     }
   }, [session, MOCK_DARES])
@@ -381,53 +374,58 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
    * Unified Transition Handler
    * Executes data update and UI feedback in parallel for instant feel
    */
-  const handleFastTurnTransition = useCallback(async (
-    options: {
-      showSuccessPopup?: boolean
-      onAction?: () => Promise<void> | void
-    } = {}
-  ) => {
-    const { showSuccessPopup = false, onAction } = options // Default to false
+  const handleFastTurnTransition = useCallback(
+    async (
+      options: {
+        showSuccessPopup?: boolean
+        onAction?: () => Promise<void> | void
+      } = {}
+    ) => {
+      const { showSuccessPopup = false, onAction } = options // Default to false
 
-    setIsTimerActive(false) // Stop timer immediately
+      setIsTimerActive(false) // Stop timer immediately
 
-    // Execute in parallel: Data Update + UI Feedback
-    await Promise.all([
-      // 1. Data Transition (Optimistic/Async)
-      (async () => {
-        if (onAction) await onAction()
-        await finishTurnAndAdvance()
-      })(),
+      // Execute in parallel: Data Update + UI Feedback
+      await Promise.all([
+        // 1. Data Transition (Optimistic/Async)
+        (async () => {
+          if (onAction) await onAction()
+          await finishTurnAndAdvance()
+        })(),
 
-      // 2. UI Feedback (Popup Timing)
-      (async () => {
-        if (showSuccessPopup) {
-          setIsSuccessPopupOpen(true)
-          // Force exactly 2s duration for the popup (user can dismiss early)
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          setIsSuccessPopupOpen(false)
-        }
-      })()
-    ])
-  }, [finishTurnAndAdvance])
+        // 2. UI Feedback (Popup Timing)
+        (async () => {
+          if (showSuccessPopup) {
+            setIsSuccessPopupOpen(true)
+            // Force exactly 2s duration for the popup (user can dismiss early)
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+            setIsSuccessPopupOpen(false)
+          }
+        })(),
+      ])
+    },
+    [finishTurnAndAdvance]
+  )
 
-  const handleValidateChallenge = useCallback(async (
-    currentPlayerId: string | undefined
-  ) => {
-    await handleFastTurnTransition({
-      showSuccessPopup: true,
-      onAction: async () => {
-        // Award point to current player
-        if (currentPlayerId && session) {
-          await dataAccess.updatePlayerScore(
-            session.id,
-            currentPlayerId,
-            (session.players.find((p) => p.id === currentPlayerId)?.score || 0) + 1
-          )
-        }
-      }
-    })
-  }, [session, handleFastTurnTransition])
+  const handleValidateChallenge = useCallback(
+    async (currentPlayerId: string | undefined) => {
+      await handleFastTurnTransition({
+        showSuccessPopup: true,
+        onAction: async () => {
+          // Award point to current player
+          if (currentPlayerId && session) {
+            await dataAccess.updatePlayerScore(
+              session.id,
+              currentPlayerId,
+              (session.players.find((p) => p.id === currentPlayerId)?.score ||
+                0) + 1
+            )
+          }
+        },
+      })
+    },
+    [session, handleFastTurnTransition]
+  )
 
   const handleSuccessPopupComplete = useCallback(() => {
     setIsSuccessPopupOpen(false)
@@ -467,7 +465,8 @@ export function useGameFlow(session: GameSession | null, MOCK_DARES: Dare[]) {
       // Restart timer from now (simplification) or just leave it paused until "En Cours" is clicked
       // Let's restart it to avoid stuck state
       await dataAccess.updateSession(session.id, {
-        startedAt: Timestamp.now()
+        startedAt: Timestamp.now(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       setIsTimerActive(true)
     }

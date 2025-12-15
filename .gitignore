@@ -52,3 +52,12 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+
+# Documentation (dev only, not deployed)
+_PROJECT_KNOWLEDGE.md
+0_PROJECT_QUICK_REF.md
+
+# ESLint reports (temp files)
+eslint-*.json
+eslint-*.txt
+lint-output.json

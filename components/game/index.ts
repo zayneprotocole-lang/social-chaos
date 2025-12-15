@@ -1,0 +1,13 @@
+// Game components barrel export
+export { default as AbandonOverlay } from './AbandonOverlay'
+export { AccompagnementModal } from './AccompagnementModal'
+export { default as ActionDock } from './ActionDock'
+export { default as DareCard } from './DareCard'
+export { default as GameEndScreen } from './GameEndScreen'
+export { default as GameSidebar } from './GameSidebar'
+export { default as GameSkeleton } from './GameSkeleton'
+export { default as GameTimer } from './GameTimer'
+export { default as OptionsMenu } from './OptionsMenu'
+export { default as PausePlayerManager } from './PausePlayerManager'
+export { default as SentencePopup } from './SentencePopup'
+export { default as SuccessPopup } from './SuccessPopup'

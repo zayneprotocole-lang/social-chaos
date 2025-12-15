@@ -15,6 +15,9 @@ export type DareCategory =
   | 'Chaos'
   | 'Fun'
 
+// Game control flow types
+export type ControlStep = 'START' | 'ACTION'
+
 export interface Dare {
   id: string
   content: string
@@ -44,10 +47,10 @@ export interface Player {
   }
 
   // Accompagnement (V11 - set at game start if part of active Mentor/Élève duo)
-  hasAccompagnement?: boolean            // true if part of an active duo
-  accompagnementPartnerId?: string       // Player ID of partner
-  accompagnementPartnerName?: string     // Partner name for display
-  accompagnementUsed?: boolean           // true if already used this game
+  hasAccompagnement?: boolean // true if part of an active duo
+  accompagnementPartnerId?: string // Player ID of partner
+  accompagnementPartnerName?: string // Partner name for display
+  accompagnementUsed?: boolean // true if already used this game
 }
 
 export interface GameSettings {

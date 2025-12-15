@@ -194,7 +194,8 @@ export const dataAccess = {
         id: doc.id,
         ...data,
         // Ensure createdAt is converted to a Date object if it's a Timestamp
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+        createdAt:
+          data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       } as Player
     })
   },
@@ -290,7 +291,9 @@ export const dataAccess = {
   /**
    * Save game history (Max 10 entries)
    */
-  async saveGameHistory(historyData: Omit<import('@/types/history').HistoryDocument, 'id'>) {
+  async saveGameHistory(
+    historyData: Omit<import('@/types/history').HistoryDocument, 'id'>
+  ) {
     const historyRef = collection(db, 'history')
 
     // 1. Get existing history count
@@ -467,7 +470,10 @@ export const dataAccess = {
             id: doc.id,
             ...data,
             // Ensure createdAt is converted to a Date object if it's a Timestamp
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+            createdAt:
+              data.createdAt instanceof Timestamp
+                ? data.createdAt.toDate()
+                : null,
           } as Player
         })
         callback(players)
@@ -513,8 +519,10 @@ export const dataAccess = {
 
     // Swap createdAt timestamps
     // We need to handle both Date and Timestamp types safely
-    const p1Date = player1.createdAt instanceof Date ? player1.createdAt : new Date()
-    const p2Date = player2.createdAt instanceof Date ? player2.createdAt : new Date()
+    const p1Date =
+      player1.createdAt instanceof Date ? player1.createdAt : new Date()
+    const p2Date =
+      player2.createdAt instanceof Date ? player2.createdAt : new Date()
 
     const { Timestamp } = await import('firebase/firestore')
 
@@ -536,7 +544,7 @@ export const dataAccess = {
       playersPlayedThisRound?: number
       settings?: Partial<GameSettings>
       startedAt?: Timestamp
-      turnCounter?: any // V9.3: Allow increment() or number
+      turnCounter?: ReturnType<typeof increment> | number // V9.3: Allow increment() or number
       swapUsedByPlayerIds?: string[] // V9.4: All players who used swap this turn
     }
   ) {

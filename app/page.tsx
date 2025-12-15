@@ -11,8 +11,15 @@ import {
   CardDescription,
 } from '@/components/ui/card'
 
-
-import { Zap, Users, Skull, BookHeart, Clock, Loader2, UserCircle } from 'lucide-react'
+import {
+  Zap,
+  Users,
+  Skull,
+  BookHeart,
+  Clock,
+  Loader2,
+  UserCircle,
+} from 'lucide-react'
 import { dataAccess } from '@/lib/services/dataAccess'
 import { GAME_CONFIG } from '@/lib/constants/config'
 import { ensureAuthenticated } from '@/lib/firebase/auth'
@@ -22,7 +29,10 @@ import { SavedGameCard } from '@/components/home/SavedGameCard'
 import { AnimatePresence } from 'framer-motion'
 import { PremiumModal, PremiumButton } from '@/components/premium/PremiumModal'
 import { HelpModal, HelpButton } from '@/components/help/HelpModal'
-import { SettingsModal, SettingsButton } from '@/components/settings/SettingsModal'
+import {
+  SettingsModal,
+  SettingsButton,
+} from '@/components/settings/SettingsModal'
 
 export default function Home() {
   const router = useRouter()
@@ -35,14 +45,13 @@ export default function Home() {
 
   const setActiveSession = useGameStore((state) => state.setActiveSession)
 
-  const savedGame = useSavedGameStore(s => s.savedGame)
-  const deleteGame = useSavedGameStore(s => s.deleteGame)
+  const savedGame = useSavedGameStore((s) => s.savedGame)
+  const deleteGame = useSavedGameStore((s) => s.deleteGame)
   const [isValidatingSavedGame, setIsValidatingSavedGame] = useState(true)
 
   // Clean up saved games that are finished or invalid
   useEffect(() => {
     const validateSavedGame = async () => {
-
       if (!savedGame?.id) {
         setIsValidatingSavedGame(false)
         return
@@ -53,12 +62,10 @@ export default function Home() {
         const session = await dataAccess.getSession(savedGame.id)
 
         if (!session || session.status === 'FINISHED') {
-          console.log('🧹 Cleaning up saved game (session finished or not found)')
           deleteGame()
         }
-      } catch (error) {
+      } catch {
         // If we can't fetch, delete to be safe
-        console.log('🧹 Cleaning up saved game (validation failed)', error)
         deleteGame()
       } finally {
         setIsValidatingSavedGame(false)
@@ -84,8 +91,6 @@ export default function Home() {
     // Also clear active session to prevent orphan "Reprendre la partie" button
     setActiveSession(null, null)
   }
-
-
 
   const createRoom = async () => {
     setIsCreating(true)
@@ -205,7 +210,6 @@ export default function Home() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-
             <Button
               onClick={createRoom}
               disabled={isCreating}
@@ -244,17 +248,13 @@ export default function Home() {
       />
 
       {/* Help Modal */}
-      <HelpModal
-        isOpen={isHelpOpen}
-        onClose={() => setIsHelpOpen(false)}
-      />
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
 
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
-
     </main>
   )
 }

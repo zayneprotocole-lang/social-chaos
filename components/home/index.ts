@@ -1,0 +1,1 @@
+export { SavedGameCard } from './SavedGameCard'

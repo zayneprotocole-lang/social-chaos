@@ -20,9 +20,7 @@ export default function LobbyPage() {
   const {
     session,
     isLoading,
-    lobbyPlayers,
     playerCount,
-    needsProfileCreation,
     roundsTotal,
     isProgressiveMode,
     handleSettingsUpdate,
@@ -50,7 +48,7 @@ export default function LobbyPage() {
           Le code {code} ne correspond à aucune partie active.
         </p>
         <Button onClick={() => router.push('/')} variant="outline">
-          Retour à l'accueil
+          Retour à l&apos;accueil
         </Button>
       </div>
     )
@@ -104,9 +102,11 @@ export default function LobbyPage() {
           className="from-primary to-secondary w-full bg-gradient-to-r py-6 text-xl font-bold shadow-[0_0_20px_var(--primary)] hover:opacity-90 disabled:opacity-50 disabled:shadow-none"
         >
           <Play className="mr-2 h-6 w-6 fill-current" />
-          {startGameError ? startGameError.toUpperCase() :
-            (playerCount === 1 ? 'JOUER SEUL' : 'LANCER LA PARTIE')
-          }
+          {startGameError
+            ? startGameError.toUpperCase()
+            : playerCount === 1
+              ? 'JOUER SEUL'
+              : 'LANCER LA PARTIE'}
         </Button>
       </div>
     </motion.div>

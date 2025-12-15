@@ -38,7 +38,7 @@ export default function HistoryPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {!history || history.length === 0 ? (
           <div className="text-muted-foreground col-span-full py-12 text-center">
-            <p>Aucune partie terminée pour le moment.</p>
+            <p>Aucune partie termin├®e pour le moment.</p>
           </div>
         ) : (
           history.map((game) => <HistoryCard key={game.id} game={game} />)

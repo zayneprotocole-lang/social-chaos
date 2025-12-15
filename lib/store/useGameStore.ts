@@ -1,3 +1,10 @@
+/**
+ * Store Zustand pour l'état global de jeu
+ *
+ * Gère les préférences globales (volume) et la session active.
+ * Persisté dans localStorage pour conserver les préférences entre sessions.
+ */
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -17,7 +24,8 @@ export const useGameStore = create<GameState>()(
       setVolume: (volume) => set({ volume }),
       activeSessionId: null,
       activeSessionCode: null,
-      setActiveSession: (id, code) => set({ activeSessionId: id, activeSessionCode: code }),
+      setActiveSession: (id, code) =>
+        set({ activeSessionId: id, activeSessionCode: code }),
     }),
     {
       name: 'social-chaos-storage',
