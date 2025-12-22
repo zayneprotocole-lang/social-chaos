@@ -119,13 +119,21 @@ export default function GamePage() {
   const accompagnementInfo = useMemo(() => {
     if (!currentPlayer?.profileId || !session?.players) return null
 
-    // Get game start time (Firestore Timestamp or Date)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const startedAt = session.startedAt as any
-    const gameStartTime =
-      startedAt instanceof Date
-        ? startedAt.getTime()
-        : startedAt?.toMillis?.() || fallbackTime
+    // Get game start time (can be Date, Timestamp, or undefined)
+    const startedAt = session.startedAt
+    let gameStartTime: number
+    if (startedAt instanceof Date) {
+      gameStartTime = startedAt.getTime()
+    } else if (
+      startedAt &&
+      typeof startedAt === 'object' &&
+      'toMillis' in startedAt
+    ) {
+      // Firestore Timestamp
+      gameStartTime = (startedAt as { toMillis: () => number }).toMillis()
+    } else {
+      gameStartTime = fallbackTime
+    }
 
     for (const link of links) {
       // Skip consumed links or links created AFTER this game started

@@ -373,7 +373,11 @@ export const dataAccess = {
   /**
    * Get filtered dares by difficulty and tags
    */
+  /**
+   * Get filtered dares by difficulty and tags
+   */
   async getFilteredDares(difficultyLevel: number, tags: string[]) {
+    // 1. Try Firestore
     const q = query(
       collection(db, 'dares'),
       where('difficultyLevel', '==', difficultyLevel),
@@ -381,13 +385,41 @@ export const dataAccess = {
     )
 
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(
+    const firestoreDares = snapshot.docs.map(
       (doc) =>
         ({
           id: doc.id,
           ...doc.data(),
         }) as DareDocument
     )
+
+    // 2. If no dares found and 'Indoor' tag is present, simplify to local fallback
+    if (firestoreDares.length === 0 && tags.includes('Indoor')) {
+      console.log('🏠 INDOOR MODE: Firestore empty, loading local fallback...')
+      try {
+        const { INDOOR_DARES } = await import('@/lib/constants/indoorDares')
+
+        // Filter local dares
+        const localDares = INDOOR_DARES.filter(
+          (d) => d.difficultyLevel == difficultyLevel
+        ).map((d, index) => ({
+          ...d,
+          id: `local_indoor_${difficultyLevel}_${index}`, // Generate a fake ID
+        })) as DareDocument[]
+
+        console.log(
+          `🏠 INDOOR FALLBACK: Found ${localDares.length} dares for difficulty ${difficultyLevel}`
+        )
+
+        if (localDares.length > 0) {
+          return localDares
+        }
+      } catch (e) {
+        console.error('❌ Error loading indoor dares:', e)
+      }
+    }
+
+    return firestoreDares
   },
 
   // ========================================
@@ -433,6 +465,42 @@ export const dataAccess = {
   async incrementUserGamesPlayed(userId: string) {
     const userRef = doc(db, 'users', userId)
     await updateDoc(userRef, { gamesPlayed: increment(1) })
+  },
+
+  /**
+   * Accept terms and conditions (electronic signature)
+   * @param userId - User ID
+   * @param version - Terms version being accepted
+   */
+  async acceptTerms(userId: string, version: string = '1.0.0') {
+    const userRef = doc(db, 'users', userId)
+    await updateDoc(userRef, {
+      termsAcceptedAt: Timestamp.now(),
+      termsVersion: version,
+    })
+  },
+
+  /**
+   * Check if user has accepted terms
+   * @param userId - User ID
+   * @returns Object with acceptance status and details
+   */
+  async hasAcceptedTerms(userId: string): Promise<{
+    accepted: boolean
+    acceptedAt: Date | null
+    version: string | null
+  }> {
+    const user = await this.getUser(userId)
+
+    if (!user || !user.termsAcceptedAt) {
+      return { accepted: false, acceptedAt: null, version: null }
+    }
+
+    return {
+      accepted: true,
+      acceptedAt: user.termsAcceptedAt.toDate(),
+      version: user.termsVersion || null,
+    }
   },
 
   // ========================================

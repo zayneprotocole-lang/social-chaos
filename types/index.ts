@@ -14,6 +14,18 @@ export type DareCategory =
   | 'Public'
   | 'Chaos'
   | 'Fun'
+  | 'Indoor'
+  | 'Truth'
+  | 'Physique'
+  | 'Social'
+  | 'Acting'
+  | 'Duel'
+  | 'Spicy'
+  | 'Cupidon'
+  | 'Sensuel'
+  | 'Phone'
+  | 'Duo'
+  | 'Group'
 
 // Game control flow types
 export type ControlStep = 'START' | 'ACTION'
@@ -100,6 +112,11 @@ export interface UserDocument {
   username: string
   gamesPlayed: number
   createdAt: Timestamp
+
+  // Terms acceptance (V12.0 - Electronic signature)
+  termsAcceptedAt?: Timestamp | null
+  termsVersion?: string | null // e.g., "1.0.0"
+  termsAcceptedIP?: string | null // Optional: IP address for legal purposes
 }
 
 /**
@@ -144,7 +161,7 @@ export interface SessionDocument {
   currentDare?: Dare
   isPaused?: boolean
   playersPlayedThisRound?: number
-  startedAt?: Timestamp
+  startedAt?: Timestamp | null
 
   // V9.3 - Atomic turn counter
   turnCounter: number

@@ -89,19 +89,38 @@ export function useLobbyLogicV2(code: string): UseLobbyLogicV2Result {
   )
   const [isProgressiveMode, setIsProgressiveMode] = useState(false)
 
-  // Track if host was auto-added
-  const hostInitialized = useRef(false)
+  // Track if lobby was initialized for this session
+  const lobbyInitialized = useRef(false)
   // Prevent double-click on start
   const isStartingGame = useRef(false)
 
+  // Get resetLobby function
+  const resetLobby = useLobbyStore((s) => s.resetLobby)
+
   // ========================================
-  // AUTO-INCLUDE HOST ON MOUNT
+  // RESET AND INITIALIZE LOBBY ON MOUNT
   // ========================================
 
   useEffect(() => {
-    if (!hostInitialized.current && hostProfile) {
-      initializeWithHost(hostProfile)
-      hostInitialized.current = true
+    // Reset lobby when entering a new session (only once per mount)
+    if (!lobbyInitialized.current) {
+      resetLobby() // Clear old players
+      lobbyInitialized.current = true
+    }
+  }, [resetLobby])
+
+  // Add host profile after reset
+  useEffect(() => {
+    if (lobbyInitialized.current && hostProfile) {
+      // Check if host is already in lobby (prevents duplicates)
+      const players = useLobbyStore.getState().players
+      const hostAlreadyInLobby = players.some(
+        (p) => p.profileId === hostProfile.id
+      )
+
+      if (!hostAlreadyInLobby) {
+        initializeWithHost(hostProfile)
+      }
     }
   }, [hostProfile, initializeWithHost])
 
@@ -199,21 +218,42 @@ export function useLobbyLogicV2(code: string): UseLobbyLogicV2Result {
         return
       }
 
+      // Pre-load dares based on session settings (Classic/Indoor)
+      const difficulty = session.settings.difficulty
+      // Ensure tags is typed correctly as array of strings
+      const tags = (session.settings.tags || ['Fun']) as string[]
+
+      console.log('🎰 Starting Game with:', { difficulty, tags })
+
+      let poolOfDares = await dataAccess.getFilteredDares(difficulty, tags)
+      console.log('📦 Pool size from DataAccess:', poolOfDares?.length)
+
+      // Safety fallback to hardcoded mocks if absolutely nothing returned
+      if (!poolOfDares || poolOfDares.length === 0) {
+        console.warn(
+          '⚠️ No dares found for settings, falling back to MOCK_DARES (Outdoor)'
+        )
+        poolOfDares = MOCK_DARES
+      }
+
       // Pick random starting dare filtered by first player's preferences
       const firstPlayer = playersData[0]
       const preferences = firstPlayer.preferences || { want: [], avoid: [] }
+      console.log('👤 Player Prefs:', preferences)
       const excludedCategories = preferences.avoid || []
       const preferredCategories = preferences.want || []
 
-      // 1. Filter out AVOID categories
-      let availableDares = MOCK_DARES.filter(
+      // 1. Filter out AVOID categories from the pool
+      let availableDares = poolOfDares.filter(
         (dare) =>
           !dare.categoryTags.some((tag) => excludedCategories.includes(tag))
       )
+      console.log('✅ Available after filter:', availableDares.length)
 
       // Fallback if filtering leaves no dares
       if (availableDares.length === 0) {
-        availableDares = MOCK_DARES
+        console.warn('⚠️ Filtering removed all dares, reverting to full pool')
+        availableDares = poolOfDares
       }
 
       // 2. Prioritize WANT categories (Weighted Selection)
@@ -222,6 +262,7 @@ export function useLobbyLogicV2(code: string): UseLobbyLogicV2Result {
         const preferredSubset = availableDares.filter((dare) =>
           dare.categoryTags.some((tag) => preferredCategories.includes(tag))
         )
+        // 20% chance to force a preferred category if available
         if (preferredSubset.length > 0 && Math.random() < 0.2) {
           finalizedPool = preferredSubset
         }

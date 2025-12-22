@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/ui/PageHeader'
 import ProfileList from '@/components/profile/ProfileList'
 import ProfileCreator from '@/components/profile/ProfileCreator'
+import GDPRDataSection from '@/components/profile/GDPRDataSection'
 import { useAuth } from '@/hooks/useAuth'
 import { useHostProfile } from '@/lib/store/useProfileStore'
 import { signOut } from '@/lib/firebase/auth'
@@ -105,6 +106,9 @@ export default function ProfilesPage() {
                 </button>
               </div>
             </div>
+
+            {/* Section RGPD */}
+            <GDPRDataSection user={user} />
 
             {/* Bouton déconnexion */}
             <button

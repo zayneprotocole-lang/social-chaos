@@ -1,214 +1,66 @@
+/**
+ * Lobby Page - Refactored
+ *
+ * Configuration de partie avant le lancement.
+ * Utilise des composants extraits pour une meilleure maintenabilité.
+ */
+
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, X, Users, UserPlus, UserCircle } from 'lucide-react'
+import { ArrowLeft, Plus, X } from 'lucide-react'
+import { toast } from 'sonner'
+
+// Hooks
 import { useLobbyLogicV2 } from '@/hooks/useLobbyLogicV2'
 import { useLobbyStore } from '@/lib/store/useLobbyStore'
 import { useProfileStore } from '@/lib/store/useProfileStore'
+
+// Components
 import LobbySkeleton from '@/components/lobby/LobbySkeleton'
 import LobbySection from '@/components/lobby/LobbySection'
 import ProfileCreator from '@/components/profile/ProfileCreator'
-import { LocalPlayerProfile } from '@/types/profile'
+import CategorySelector, {
+  ALL_CATEGORIES,
+  MIN_CATEGORIES_REQUIRED,
+  type Category,
+} from '@/components/lobby/CategorySelector'
+import DifficultySelector from '@/components/lobby/DifficultySelector'
+import AlcoholModeToggle from '@/components/lobby/AlcoholModeToggle'
+import CategoryWarningPopup from '@/components/lobby/CategoryWarningPopup'
+
+// Constants
 import { TEXTS } from '@/lib/constants/texts'
-
-// Catégories groupées par thème
-const categoryGroups = [
-  {
-    theme: 'Pour séduire',
-    emoji: '💘',
-    categories: [
-      {
-        id: 'sauvage',
-        emoji: '😎',
-        name: 'Rizz',
-        desc: 'Un crush ? Brisez la glace',
-        warning: null,
-      },
-      {
-        id: 'echange',
-        emoji: '🤝',
-        name: 'Échange',
-        desc: 'Idéal pour se rapprocher',
-        warning: 'echange' as const,
-      },
-      {
-        id: 'karaoke',
-        emoji: '🎤',
-        name: 'Karaoké',
-        desc: 'Pour une nuit caliente',
-        warning: 'karaoke' as const,
-      },
-    ],
-  },
-  {
-    theme: "Pour s'amuser",
-    emoji: '🎉',
-    categories: [
-      {
-        id: 'folie',
-        emoji: '😈',
-        name: 'Absurde',
-        desc: 'Gênance et honte maximum',
-        warning: null,
-      },
-      {
-        id: 'jeux',
-        emoji: '🎲',
-        name: 'Jeux',
-        desc: 'Rencontre fun et amusante',
-        warning: null,
-      },
-      {
-        id: 'favoris',
-        emoji: '⭐',
-        name: 'Favoris',
-        desc: 'Vos gages préférés',
-        warning: null,
-      },
-    ],
-  },
-  {
-    theme: 'Pour faire des rencontres',
-    emoji: '🤝',
-    categories: [
-      {
-        id: 'philo',
-        emoji: '🧠',
-        name: 'Philo',
-        desc: 'Discussion profonde et amusante',
-        warning: null,
-      },
-      {
-        id: 'enquete',
-        emoji: '🔍',
-        name: 'Enquête',
-        desc: 'Facile, idéal pour poser les bases',
-        warning: null,
-      },
-      {
-        id: 'mignon',
-        emoji: '🥰',
-        name: 'Mignon',
-        desc: 'Bienveillance et bonne action',
-        warning: null,
-      },
-    ],
-  },
-]
-
-// Flat list pour la logique (sélection, etc.)
-const allCategories = categoryGroups.flatMap((g) => g.categories)
-
-const difficulties = [
-  {
-    id: 'gentil',
-    name: 'Chaos Gentil',
-    emoji: '😇',
-    desc: 'Facile, pour débuter',
-    color: 'yellow' as const,
-  },
-  {
-    id: 'sauvage',
-    name: 'Chaos Sauvage',
-    emoji: '🔥',
-    desc: 'Modéré, ça monte',
-    color: 'orange' as const,
-  },
-  {
-    id: 'chaotique',
-    name: 'Chaos Chaotique',
-    emoji: '💀',
-    desc: 'Extrême, sans pitié',
-    color: 'red' as const,
-  },
-  {
-    id: 'progressif',
-    name: 'Chaos Progressif',
-    emoji: '📈',
-    desc: 'Gentil → Chaotique',
-    color: 'purple' as const,
-    special: true,
-  },
-]
-
-const colorClasses = {
-  yellow: 'border-yellow-500 bg-yellow-500/50',
-  orange: 'border-orange-500 bg-orange-500/50',
-  red: 'border-red-500 bg-red-500/50',
-  purple: 'border-purple-500 bg-purple-500/50',
-}
-
-const glowColors = {
-  yellow: 'shadow-[0_0_20px_rgba(234,179,8,0.3)]',
-  orange: 'shadow-[0_0_20px_rgba(249,115,22,0.3)]',
-  red: 'shadow-[0_0_20px_rgba(239,68,68,0.3)]',
-  purple: 'shadow-[0_0_20px_rgba(168,85,247,0.3)]',
-}
-
-const categoryBgColors: Record<string, string> = {
-  sauvage: 'bg-purple-500/15 border-purple-500/25',
-  jeux: 'bg-cyan-500/15 border-cyan-500/25',
-  philo: 'bg-violet-500/15 border-violet-500/25',
-  mignon: 'bg-pink-500/15 border-pink-500/25',
-  folie: 'bg-purple-600/15 border-purple-600/25',
-  enquete: 'bg-cyan-600/15 border-cyan-600/25',
-  echange: 'bg-violet-600/15 border-violet-600/25',
-  karaoke: 'bg-fuchsia-500/15 border-fuchsia-500/25',
-  favoris: 'bg-purple-400/15 border-purple-400/25',
-}
-
-const categorySelectedColors: Record<string, string> = {
-  sauvage:
-    'bg-purple-500/55 border-2 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
-  jeux: 'bg-cyan-500/55 border-2 border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.4)]',
-  philo:
-    'bg-violet-500/55 border-2 border-violet-500 shadow-[0_0_20px_rgba(139,92,246,0.4)]',
-  mignon:
-    'bg-pink-500/55 border-2 border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.4)]',
-  folie:
-    'bg-purple-600/55 border-2 border-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.4)]',
-  enquete:
-    'bg-cyan-600/55 border-2 border-cyan-600 shadow-[0_0_20px_rgba(8,145,178,0.4)]',
-  echange:
-    'bg-violet-600/55 border-2 border-violet-600 shadow-[0_0_20px_rgba(124,58,237,0.4)]',
-  karaoke:
-    'bg-fuchsia-500/55 border-2 border-fuchsia-500 shadow-[0_0_20px_rgba(217,70,239,0.4)]',
-  favoris:
-    'bg-purple-400/55 border-2 border-purple-400 shadow-[0_0_20px_rgba(192,132,252,0.4)]',
-}
+import { DEFAULT_SELECTED_CATEGORIES } from '@/lib/constants/categories'
+import { DEFAULT_DIFFICULTY } from '@/lib/constants/difficulties'
 
 export default function LobbyPage() {
   const params = useParams()
   const router = useRouter()
   const code = params.code as string
 
-  // State for categories
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([
-    'sauvage',
-    'jeux',
-    'mignon',
-  ])
-  const [warningPopup, setWarningPopup] = useState<string | null>(null)
+  // ========================================
+  // STATE
+  // ========================================
 
-  // State for difficulty
-  const [selectedDifficulty, setSelectedDifficulty] = useState('sauvage')
+  // Categories
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    DEFAULT_SELECTED_CATEGORIES
+  )
+  const [warningPopup, setWarningPopup] = useState<
+    'echange' | 'karaoke' | null
+  >(null)
 
-  // State for options
+  // Difficulty
+  const [selectedDifficulty, setSelectedDifficulty] =
+    useState(DEFAULT_DIFFICULTY)
+
+  // Options
   const [tours, setTours] = useState(6)
   const [alcoolMode, setAlcoolMode] = useState(false)
 
-  // Lobby store actions
-  const addPlayerFromProfile = useLobbyStore((s) => s.addPlayerFromProfile)
-  const addGuestPlayer = useLobbyStore((s) => s.addGuestPlayer)
-  const removePlayer = useLobbyStore((s) => s.removePlayer)
-
-  // Profile store
-  // Profile store - FIX: Use stable selectors to avoid infinite loops
-  const hostProfile = useProfileStore((s) => s.hostProfile)
-  const guestProfiles = useProfileStore((s) => s.guestProfiles)
-
-  // States for modals
+  // Modals
   const [showProfileCreator, setShowProfileCreator] = useState(false)
   const [showGuestInput, setShowGuestInput] = useState(false)
   const [guestName, setGuestName] = useState('')
@@ -217,37 +69,84 @@ export default function LobbyPage() {
     name: string
   } | null>(null)
 
-  const {
-    session,
-    isLoading,
-    lobbyPlayers,
-    playerCount,
-    canStartGame,
-    startGameError,
-    startGame,
-  } = useLobbyLogicV2(code)
+  // ========================================
+  // STORES
+  // ========================================
 
-  const handleCategoryToggle = (category: (typeof allCategories)[0]) => {
-    // Si déjà sélectionnée, on désélectionne
+  const addPlayerFromProfile = useLobbyStore((s) => s.addPlayerFromProfile)
+  const addGuestPlayer = useLobbyStore((s) => s.addGuestPlayer)
+  const removePlayer = useLobbyStore((s) => s.removePlayer)
+  const hostProfile = useProfileStore((s) => s.hostProfile)
+  const guestProfiles = useProfileStore((s) => s.guestProfiles)
+
+  // ========================================
+  // LOBBY LOGIC HOOK
+  // ========================================
+
+  const { session, isLoading, lobbyPlayers, playerCount, startGame } =
+    useLobbyLogicV2(code)
+
+  const isIndoor = session?.settings?.tags?.includes('Indoor') || false
+
+  // ========================================
+  // HANDLERS
+  // ========================================
+
+  const handleCategoryToggle = (category: Category) => {
+    // If already selected, deselect
     if (selectedCategories.includes(category.id)) {
       setSelectedCategories((prev) => prev.filter((id) => id !== category.id))
       return
     }
 
-    // Si elle a un warning et n'est pas encore sélectionnée, on affiche le popup
+    // If it has a warning and not selected, show popup
     if (category.warning) {
       setWarningPopup(category.warning)
       return
     }
 
-    // Sinon on l'ajoute directement
+    // Otherwise add it directly
     setSelectedCategories((prev) => [...prev, category.id])
   }
 
   const confirmCategory = (categoryId: string) => {
     setSelectedCategories((prev) => [...prev, categoryId])
     setWarningPopup(null)
+    toast.success(`Catégorie "${categoryId}" ajoutée`)
   }
+
+  const handleAddGuest = () => {
+    if (guestName.trim()) {
+      addGuestPlayer(guestName.trim())
+      setGuestName('')
+      toast.success(`${guestName} ajouté à la partie`)
+    }
+  }
+
+  const handleStartGame = async () => {
+    // Validations (skip categories for Indoor mode)
+    if (!isIndoor && selectedCategories.length < MIN_CATEGORIES_REQUIRED) {
+      toast.error(`Sélectionne au moins ${MIN_CATEGORIES_REQUIRED} catégories`)
+      return
+    }
+
+    if (playerCount === 0) {
+      toast.error('Ajoute au moins un joueur')
+      return
+    }
+
+    try {
+      await startGame()
+      toast.success("C'est parti ! 🚀")
+    } catch (error) {
+      toast.error('Erreur lors du lancement de la partie')
+      console.error('Start game error:', error)
+    }
+  }
+
+  // ========================================
+  // LOADING & ERROR STATES
+  // ========================================
 
   if (isLoading) {
     return <LobbySkeleton />
@@ -270,9 +169,13 @@ export default function LobbyPage() {
     )
   }
 
+  // ========================================
+  // RENDER
+  // ========================================
+
   return (
     <>
-      {/* Header avec retour */}
+      {/* Header */}
       <header className="glass-strong sticky top-0 z-50 flex items-center gap-4 rounded-none border-x-0 border-t-0 px-4 py-4">
         <button
           onClick={() => router.push('/')}
@@ -281,19 +184,30 @@ export default function LobbyPage() {
         >
           <ArrowLeft className="h-6 w-6 text-white" />
         </button>
-        <h1 className="text-xl font-bold text-white">Créer une partie</h1>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-bold text-white">
+            {session?.settings?.tags?.includes('Indoor')
+              ? 'Mode Maison 🏠'
+              : 'Créer une partie'}
+          </h1>
+          {session?.settings?.tags?.includes('Indoor') && (
+            <span className="text-xs font-medium text-cyan-400">
+              Règles spéciales activées
+            </span>
+          )}
+        </div>
       </header>
 
-      {/* Contenu scrollable */}
+      {/* Content */}
       <main className="space-y-2.5 px-4 pt-4 pb-2">
-        {/* Section 1: Joueurs */}
+        {/* Section 1: Players */}
         <LobbySection
           icon="👥"
           title="Joueurs"
           helpText={TEXTS.lobby.help.players}
         >
           <div className="space-y-2">
-            {/* Liste des joueurs */}
+            {/* Player list */}
             {lobbyPlayers.map((player) => (
               <div
                 key={player.id}
@@ -320,7 +234,7 @@ export default function LobbyPage() {
                   )}
                 </div>
 
-                {/* Nom et badges */}
+                {/* Name and badges */}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-medium text-white">
@@ -341,7 +255,6 @@ export default function LobbyPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1">
-                  {/* Bouton sauvegarder (si invité) */}
                   {!player.profileId && (
                     <button
                       onClick={() => {
@@ -355,10 +268,12 @@ export default function LobbyPage() {
                     </button>
                   )}
 
-                  {/* Bouton retirer */}
                   {!player.isHost && (
                     <button
-                      onClick={() => removePlayer(player.id)}
+                      onClick={() => {
+                        removePlayer(player.id)
+                        toast.info(`${player.name} retiré`)
+                      }}
                       className="flex-shrink-0 rounded-full p-2 transition-colors hover:bg-red-500/20"
                       aria-label="Retirer joueur"
                     >
@@ -369,7 +284,7 @@ export default function LobbyPage() {
               </div>
             ))}
 
-            {/* Bouton/Case d'ajout */}
+            {/* Add player section */}
             <div className="mt-3">
               {!showGuestInput ? (
                 <button
@@ -381,7 +296,7 @@ export default function LobbyPage() {
                 </button>
               ) : (
                 <div className="glass space-y-3 rounded-xl p-3">
-                  {/* Input pour nom */}
+                  {/* Input for name */}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -389,10 +304,7 @@ export default function LobbyPage() {
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && guestName.trim()) {
-                          addGuestPlayer(guestName.trim())
-                          setGuestName('')
-                        }
+                        if (e.key === 'Enter') handleAddGuest()
                         if (e.key === 'Escape') {
                           setShowGuestInput(false)
                           setGuestName('')
@@ -402,12 +314,7 @@ export default function LobbyPage() {
                       className="glass flex-1 rounded-lg border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-purple-500 focus:outline-none"
                     />
                     <button
-                      onClick={() => {
-                        if (guestName.trim()) {
-                          addGuestPlayer(guestName.trim())
-                          setGuestName('')
-                        }
-                      }}
+                      onClick={handleAddGuest}
                       disabled={!guestName.trim()}
                       className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -424,7 +331,7 @@ export default function LobbyPage() {
                     </button>
                   </div>
 
-                  {/* Liste des profils enregistrés */}
+                  {/* Saved profiles list */}
                   {guestProfiles.filter(
                     (p) => !lobbyPlayers.some((lp) => lp.profileId === p.id)
                   ).length > 0 && (
@@ -444,10 +351,10 @@ export default function LobbyPage() {
                               onClick={() => {
                                 addPlayerFromProfile(profile)
                                 setShowGuestInput(false)
+                                toast.success(`${profile.name} ajouté`)
                               }}
                               className="glass-interactive flex w-full items-center gap-2 rounded-lg p-2 text-left"
                             >
-                              {/* Avatar */}
                               <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-purple-500/30">
                                 {profile.avatarUri ? (
                                   <img
@@ -482,7 +389,7 @@ export default function LobbyPage() {
           helpText={TEXTS.lobby.help.options}
         >
           <div className="space-y-4">
-            {/* Nombre de tours */}
+            {/* Number of turns */}
             <div>
               <label className="mb-2 block text-sm text-white/60">
                 Nombre de tours
@@ -504,202 +411,168 @@ export default function LobbyPage() {
               </div>
             </div>
 
-            {/* Mode alcool - Carte explicative */}
-            <div
-              onClick={() => setAlcoolMode(!alcoolMode)}
-              className={`cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 ${
-                alcoolMode
-                  ? 'border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20'
-                  : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-cyan-500/10'
-              } `}
-              style={{
-                boxShadow: alcoolMode
-                  ? '0 0 25px rgba(245, 158, 11, 0.2)'
-                  : '0 0 15px rgba(6, 182, 212, 0.1)',
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                {/* Icône + Contenu */}
-                <div className="flex items-start gap-3">
-                  {/* Icône dynamique */}
-                  <div
-                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
-                      alcoolMode
-                        ? 'bg-amber-500/30 text-amber-400'
-                        : 'bg-cyan-500/20 text-cyan-400'
-                    } `}
-                  >
-                    <span className="text-xl">{alcoolMode ? '🍺' : '☕'}</span>
-                  </div>
+            {/* Alcohol mode toggle */}
+            <AlcoholModeToggle
+              alcoolMode={alcoolMode}
+              onToggle={() => setAlcoolMode(!alcoolMode)}
+            />
+          </div>
+        </LobbySection>
 
-                  {/* Texte explicatif */}
-                  <div className="flex flex-col gap-0.5">
+        {/* Section 3: Categories (Hidden/Fixed for Indoor Mode) */}
+        {!isIndoor ? (
+          <LobbySection
+            icon="🎯"
+            title="Catégories"
+            helpText={TEXTS.lobby.help.categories}
+          >
+            <CategorySelector
+              selectedCategories={selectedCategories}
+              onCategoryToggle={handleCategoryToggle}
+            />
+          </LobbySection>
+        ) : (
+          <LobbySection
+            icon="🏠"
+            title="Mode Maison"
+            helpText="Gages spécialement conçus pour les soirées en appartement."
+          >
+            <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/30 p-4">
+              <p className="mb-2 text-sm font-medium text-cyan-200">
+                Catégories automatiques :
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['Maison', 'Vérité', 'Physique', 'Réseaux', 'Fun'].map(
+                  (tag) => (
                     <span
-                      className={`text-base font-bold transition-colors ${alcoolMode ? 'text-amber-300' : 'text-cyan-300'} `}
+                      key={tag}
+                      className="rounded-full bg-cyan-500/20 px-3 py-1 text-xs text-cyan-200"
                     >
-                      {alcoolMode ? 'Mode Alcool' : 'Mode Sans Alcool'}
+                      {tag}
                     </span>
-                    <span className="text-xs text-white/60">
-                      {alcoolMode
-                        ? 'Pénalités = gorgées à boire'
-                        : 'Pénalités = vérités à avouer'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Toggle visuel */}
-                <div
-                  className={`relative h-7 w-12 flex-shrink-0 rounded-full transition-all duration-300 ${alcoolMode ? 'bg-amber-500' : 'bg-cyan-500/50'} `}
-                >
-                  <div
-                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all duration-300 ${alcoolMode ? 'left-6' : 'left-1'} `}
-                  />
-                </div>
+                  )
+                )}
               </div>
+              <p className="mt-3 text-xs text-cyan-400 italic">
+                Les catégories sont fixes pour ce mode de jeu pour garantir un
+                chaos optimal en intérieur.
+              </p>
             </div>
-          </div>
-        </LobbySection>
+          </LobbySection>
+        )}
 
-        {/* Section 3: Catégories */}
-        <LobbySection
-          icon="🎯"
-          title="Catégories"
-          helpText={TEXTS.lobby.help.categories}
-        >
-          <div className="space-y-4">
-            {categoryGroups.map((group, groupIndex) => (
-              <div key={group.theme}>
-                {/* Séparateur entre groupes */}
-                {groupIndex > 0 && <div className="mb-4 h-px bg-white/10" />}
-
-                {/* Label du thème */}
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="text-base">{group.emoji}</span>
-                  <span className="text-xs font-medium tracking-wide text-white/60 uppercase">
-                    {group.theme}
-                  </span>
-                </div>
-
-                {/* Catégories du groupe */}
-                <div className="grid grid-cols-3 gap-2">
-                  {group.categories.map((cat) => {
-                    const isSelected = selectedCategories.includes(cat.id)
-                    return (
-                      <button
-                        key={cat.id}
-                        onClick={() => handleCategoryToggle(cat)}
-                        className={`flex min-h-[70px] flex-col items-center justify-center rounded-xl border-2 p-2 text-center transition-all duration-200 active:scale-95 ${
-                          isSelected
-                            ? categorySelectedColors[cat.id]
-                            : `${categoryBgColors[cat.id]} border-transparent opacity-50 hover:opacity-75`
-                        } `}
-                      >
-                        <span className="mb-0.5 text-xl">{cat.emoji}</span>
-                        <span
-                          className={`text-[11px] font-bold ${isSelected ? 'text-white' : 'text-white/80'}`}
-                        >
-                          {cat.name}
-                        </span>
-                        <span
-                          className={`mt-0.5 text-[8px] leading-tight ${isSelected ? 'text-white/70' : 'text-white/50'}`}
-                        >
-                          {cat.desc}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </LobbySection>
-
-        {/* Section 4: Difficulté */}
+        {/* Section 4: Difficulty */}
         <LobbySection
           icon="⚡"
           title="Difficulté"
           helpText={TEXTS.lobby.help.difficulty}
         >
-          <div className="space-y-3">
-            {/* 3 niveaux fixes */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {difficulties
-                .filter((d) => !d.special)
-                .map((diff) => (
-                  <button
-                    key={diff.id}
-                    onClick={() => setSelectedDifficulty(diff.id)}
-                    className={`rounded-lg p-1.5 text-center transition-all duration-200 ${
-                      selectedDifficulty === diff.id
-                        ? `${colorClasses[diff.color]} border-2 ${glowColors[diff.color]}`
-                        : `${colorClasses[diff.color].replace('/50', '/5')} border border-${diff.color}-500/10 opacity-40`
-                    } `}
-                  >
-                    <span className="mb-0.5 block text-lg">{diff.emoji}</span>
-                    <span className="block text-[10px] leading-tight font-medium text-white">
-                      {diff.name}
-                    </span>
-                  </button>
-                ))}
-            </div>
-
-            {/* Séparateur */}
-            <div className="flex items-center gap-2">
-              <div className="h-px flex-1 bg-white/10"></div>
-              <span className="text-xs text-white/30">ou</span>
-              <div className="h-px flex-1 bg-white/10"></div>
-            </div>
-
-            {/* Mode progressif */}
-            <button
-              onClick={() => setSelectedDifficulty('progressif')}
-              className={`w-full rounded-lg p-2.5 transition-all duration-200 ${
-                selectedDifficulty === 'progressif'
-                  ? 'border-2 border-purple-500 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]'
-                  : 'glass border border-white/10 hover:border-white/20'
-              } `}
-            >
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-2xl">📈</span>
-                <div className="text-left">
-                  <span className="block font-semibold text-white">
-                    Chaos Progressif
-                  </span>
-                  <span className="text-xs text-white/50">
-                    Commence gentil, finit chaotique
-                  </span>
+          {!isIndoor ? (
+            <DifficultySelector
+              selectedDifficulty={selectedDifficulty}
+              onDifficultyChange={setSelectedDifficulty}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {/* Chill (Niv 1) */}
+              <button
+                onClick={() => setSelectedDifficulty(1 as any)} // eslint-disable-line @typescript-eslint/no-explicit-any
+                className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
+                  Number(selectedDifficulty) === 1
+                    ? 'border-green-400 bg-green-900/40 shadow-[0_0_20px_rgba(74,222,128,0.3)]'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="font-bold text-green-400">CHILL 🧊</span>
+                  {Number(selectedDifficulty) === 1 && (
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
+                  )}
                 </div>
-              </div>
-            </button>
-          </div>
+                <p className="text-xs text-white/60">
+                  Pour commencer en douceur. Anecdotes et fun.
+                </p>
+              </button>
+
+              {/* Spicy (Niv 2) */}
+              <button
+                onClick={() => setSelectedDifficulty(2 as any)} // eslint-disable-line @typescript-eslint/no-explicit-any
+                className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
+                  Number(selectedDifficulty) === 2
+                    ? 'border-pink-500 bg-pink-900/40 shadow-[0_0_20px_rgba(236,72,153,0.3)]'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="font-bold text-pink-500">SPICY 🌶️</span>
+                  {Number(selectedDifficulty) === 2 && (
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-pink-500" />
+                  )}
+                </div>
+                <p className="text-xs text-white/60">
+                  Contacts physiques, tension et séduction.
+                </p>
+              </button>
+
+              {/* Chaos (Niv 3) */}
+              <button
+                onClick={() => setSelectedDifficulty(3 as any)} // eslint-disable-line @typescript-eslint/no-explicit-any
+                className={`relative overflow-hidden rounded-xl border p-4 text-left transition-all ${
+                  Number(selectedDifficulty) === 3
+                    ? 'border-purple-600 bg-purple-900/40 shadow-[0_0_20px_rgba(147,51,234,0.3)]'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="font-bold text-purple-400">CHAOS 💀</span>
+                  {Number(selectedDifficulty) === 3 && (
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500" />
+                  )}
+                </div>
+                <p className="text-xs text-white/60">
+                  Téléphones déverrouillés et secrets révélés.
+                </p>
+              </button>
+            </div>
+          )}
         </LobbySection>
       </main>
 
-      {/* Section Lancement */}
+      {/* Start Section */}
       <div className="px-4 pt-3 pb-8">
-        {/* Message de validation catégories */}
-        <div className="mb-3 text-center">
-          {selectedCategories.length < 3 ? (
-            <p className="flex items-center justify-center gap-2 text-sm text-amber-400">
-              <span>⚠️</span>
-              <span>
-                Sélectionne au moins 3 catégories ({selectedCategories.length}
-                /3)
-              </span>
-            </p>
-          ) : (
-            <p className="flex items-center justify-center gap-2 text-sm text-green-400">
-              <span>✓</span>
-              <span>{selectedCategories.length} catégories sélectionnées</span>
-            </p>
-          )}
-        </div>
+        {/* Category validation message (Only for Outdoor) */}
+        {!isIndoor && (
+          <div className="mb-3 text-center">
+            {selectedCategories.length < MIN_CATEGORIES_REQUIRED ? (
+              <p className="flex items-center justify-center gap-2 text-sm text-amber-400">
+                <span>⚠️</span>
+                <span>
+                  Sélectionne au moins {MIN_CATEGORIES_REQUIRED} catégories (
+                  {selectedCategories.length}/{MIN_CATEGORIES_REQUIRED})
+                </span>
+              </p>
+            ) : (
+              <p className="flex items-center justify-center gap-2 text-sm text-green-400">
+                <span>✓</span>
+                <span>
+                  {selectedCategories.length} catégories sélectionnées
+                </span>
+              </p>
+            )}
+          </div>
+        )}
 
         <button
-          onClick={startGame}
-          disabled={selectedCategories.length < 3 || playerCount === 0}
+          onClick={handleStartGame}
+          disabled={
+            (!isIndoor &&
+              selectedCategories.length < MIN_CATEGORIES_REQUIRED) ||
+            playerCount === 0
+          }
           className={`flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 px-5 py-3 text-base font-bold text-white transition-all duration-300 ${
-            selectedCategories.length < 3 || playerCount === 0
+            (!isIndoor &&
+              selectedCategories.length < MIN_CATEGORIES_REQUIRED) ||
+            playerCount === 0
               ? 'cursor-not-allowed opacity-50 grayscale'
               : 'glow-purple hover:scale-[1.02]'
           } `}
@@ -708,7 +581,7 @@ export default function LobbyPage() {
           <span>Démarrer la pire partie de votre vie</span>
         </button>
 
-        {/* Message si pas assez de joueurs */}
+        {/* Message if not enough players */}
         {playerCount === 0 && (
           <p className="mt-2 text-center text-xs text-red-400">
             Ajoute au moins un joueur pour commencer
@@ -716,118 +589,28 @@ export default function LobbyPage() {
         )}
       </div>
 
-      {/* Popup d'avertissement Échange */}
-      {warningPopup === 'echange' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="glass-strong w-full max-w-sm rounded-2xl p-6">
-            <div className="mb-4 text-center">
-              <span className="text-4xl">⚠️</span>
-              <h3 className="mt-2 text-xl font-bold text-white">Attention</h3>
-            </div>
+      {/* Warning Popups */}
+      <CategoryWarningPopup
+        warningType={warningPopup}
+        onConfirm={confirmCategory}
+        onCancel={() => setWarningPopup(null)}
+      />
 
-            <p className="mb-4 text-sm text-white/80">
-              Cette catégorie peut inclure des gages impliquant :
-            </p>
-
-            <ul className="mb-6 space-y-2 text-sm text-white/60">
-              <li className="flex items-center gap-2">
-                <span>•</span> Offrir des verres ou boissons
-              </li>
-              <li className="flex items-center gap-2">
-                <span>•</span> Petits achats ou cadeaux
-              </li>
-              <li className="flex items-center gap-2">
-                <span>•</span> Consommation d&apos;alcool
-              </li>
-            </ul>
-
-            <p className="mb-6 text-center text-sm font-medium text-purple-300">
-              Tu n&apos;es jamais obligé de dépenser si tu ne veux pas.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setWarningPopup(null)}
-                className="glass-interactive flex-1 rounded-xl py-3 font-medium text-white"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => confirmCategory('echange')}
-                className="flex-1 rounded-xl bg-purple-600 py-3 font-medium text-white transition-colors hover:bg-purple-500"
-              >
-                J&apos;ai compris
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Popup d'avertissement Karaoké */}
-      {warningPopup === 'karaoke' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="glass-strong w-full max-w-sm rounded-2xl p-6">
-            <div className="mb-4 text-center">
-              <span className="text-4xl">🎤</span>
-              <h3 className="mt-2 text-xl font-bold text-white">
-                Lieu adapté requis
-              </h3>
-            </div>
-
-            <p className="mb-4 text-sm text-white/80">
-              Cette catégorie nécessite un environnement adapté :
-            </p>
-
-            <ul className="mb-6 space-y-2 text-sm text-white/60">
-              <li className="flex items-center gap-2">
-                <span>•</span> Soirée karaoké
-              </li>
-              <li className="flex items-center gap-2">
-                <span>•</span> Bar dansant
-              </li>
-              <li className="flex items-center gap-2">
-                <span>•</span> Boîte de nuit
-              </li>
-            </ul>
-
-            <p className="mb-6 text-center text-sm font-medium text-cyan-300">
-              Les gages incluent du chant et de la danse.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setWarningPopup(null)}
-                className="glass-interactive flex-1 rounded-xl py-3 font-medium text-white"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => confirmCategory('karaoke')}
-                className="flex-1 rounded-xl bg-cyan-600 py-3 font-medium text-white transition-colors hover:bg-cyan-500"
-              >
-                J&apos;ai compris
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal: Créateur de Profil */}
+      {/* Modal: Profile Creator */}
       {showProfileCreator && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <ProfileCreator
             initialData={playerToSave ? { name: playerToSave.name } : undefined}
             onSuccess={(profile) => {
-              // Si on sauvegarde un joueur temporaire, le remplacer par le profil
               if (playerToSave) {
                 removePlayer(playerToSave.id)
                 addPlayerFromProfile(profile)
                 setPlayerToSave(null)
               } else {
-                // Sinon juste ajouter le profil
                 addPlayerFromProfile(profile)
               }
               setShowProfileCreator(false)
+              toast.success(`Profil "${profile.name}" créé`)
             }}
             onCancel={() => {
               setShowProfileCreator(false)
