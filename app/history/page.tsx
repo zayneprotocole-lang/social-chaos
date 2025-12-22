@@ -1,49 +1,112 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft } from 'lucide-react'
+import { History, Play } from 'lucide-react'
 import Link from 'next/link'
-import { HistoryCard } from '@/components/history/HistoryCard'
+import PageHeader from '@/components/ui/PageHeader'
+import GlassCard from '@/components/ui/GlassCard'
+import PrimaryButton from '@/components/ui/PrimaryButton'
 import { useGameHistory } from '@/lib/queries/historyQueries'
-import HistorySkeleton from '@/components/history/HistorySkeleton'
+import { formatDistance } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 export default function HistoryPage() {
   const { data: history, isLoading } = useGameHistory()
 
-  // Task 7.3: Instant Shell Interface - Show skeleton while loading
   if (isLoading) {
-    return <HistorySkeleton />
+    return (
+      <>
+        <PageHeader title="Historique" />
+        <main className="px-4 pt-20 pb-8">
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <GlassCard key={i} className="animate-pulse p-4">
+                <div className="mb-3 h-4 w-1/2 rounded bg-white/10"></div>
+                <div className="h-3 w-3/4 rounded bg-white/10"></div>
+              </GlassCard>
+            ))}
+          </div>
+        </main>
+      </>
+    )
   }
 
-  // Task 7.3: Smooth Transition Animation - Fade in content
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="bg-background min-h-screen space-y-6 p-4 pb-24"
-    >
-      <header className="mb-8 flex items-center gap-4">
-        <Link href="/">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-        </Link>
-        <h1 className="from-primary to-secondary bg-gradient-to-r bg-clip-text text-3xl font-black text-transparent">
-          HISTORIQUE
-        </h1>
-      </header>
+    <>
+      <PageHeader title="Historique" />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <main className="px-4 pt-20 pb-8">
         {!history || history.length === 0 ? (
-          <div className="text-muted-foreground col-span-full py-12 text-center">
-            <p>Aucune partie termin├®e pour le moment.</p>
+          // État vide
+          <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+            <div className="glass mb-6 flex h-20 w-20 items-center justify-center rounded-full">
+              <History className="h-10 w-10 text-pink-400" />
+            </div>
+            <h2 className="mb-2 text-xl font-bold text-white">
+              Aucune partie jouée
+            </h2>
+            <p className="mb-6 text-white/60">Lancez votre première partie !</p>
+            <Link href="/">
+              <PrimaryButton icon={<Play className="h-5 w-5" />}>
+                Nouvelle partie
+              </PrimaryButton>
+            </Link>
           </div>
         ) : (
-          history.map((game) => <HistoryCard key={game.id} game={game} />)
+          // Liste des parties
+          <div className="space-y-4">
+            {history.map((game) => {
+              const totalPlayers =
+                1 + (game.otherPlayers?.length || 0) + (game.loser ? 1 : 0)
+
+              return (
+                <GlassCard key={game.id} className="p-4">
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="text-sm text-white/60">
+                      {formatDistance(game.playedAt, new Date(), {
+                        addSuffix: true,
+                        locale: fr,
+                      })}
+                    </div>
+                    <span className="rounded-full bg-purple-500/20 px-2 py-1 text-xs font-medium text-purple-300">
+                      Niveau {game.difficulty}
+                    </span>
+                  </div>
+
+                  <div className="mb-4 flex items-center gap-4 text-sm text-white/80">
+                    <span>⏱ {game.totalRounds} Tours</span>
+                    <span>👥 {totalPlayers} Joueurs</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <span>👑</span>
+                      <span className="font-medium">LE GOAT</span>
+                      <span className="text-white/60">
+                        - {game.winner.name}
+                      </span>
+                      <span className="text-xs text-white/40">
+                        ({game.winner.score} pts)
+                      </span>
+                    </div>
+                    {game.loser && (
+                      <div className="flex items-center gap-2 text-red-400">
+                        <span>🐐</span>
+                        <span className="font-medium">LA CHÈVRE</span>
+                        <span className="text-white/60">
+                          - {game.loser.name}
+                        </span>
+                        <span className="text-xs text-white/40">
+                          ({game.loser.score} pts)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </GlassCard>
+              )
+            })}
+          </div>
         )}
-      </div>
-    </motion.div>
+      </main>
+    </>
   )
 }

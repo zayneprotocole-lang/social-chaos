@@ -58,6 +58,8 @@ function convertSessionDoc(
     status: data.status,
     settings: data.settings,
     createdAt: data.createdAt,
+    creatorId: data.creatorId,
+    participantIds: data.participantIds || [],
     roundsTotal: data.roundsTotal,
     roundsCompleted: data.roundsCompleted,
     isProgressiveMode: data.isProgressiveMode,
@@ -95,6 +97,15 @@ export const dataAccess = {
     roundsTotal: number
     isProgressiveMode: boolean
   }) {
+    // Get current authenticated user
+    const { getAuth } = await import('firebase/auth')
+    const auth = getAuth()
+    const currentUser = auth.currentUser
+
+    if (!currentUser) {
+      throw new Error('User must be authenticated to create a session')
+    }
+
     const sessionRef = doc(db, 'sessions', data.roomCode)
     const sessionData: SessionDocument = {
       id: sessionRef.id,
@@ -107,6 +118,8 @@ export const dataAccess = {
       createdAt: Timestamp.now(),
       endedAt: null,
       turnCounter: 1, // V9.3: Initialize turnCounter to 1
+      creatorId: currentUser.uid, // Required by Firestore rules
+      participantIds: [currentUser.uid], // Creator is first participant
     }
 
     await setDoc(sessionRef, sessionData)

@@ -1,102 +1,102 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card'
-
-import {
-  Zap,
-  Users,
-  Skull,
+  User,
   BookHeart,
-  Clock,
-  Loader2,
-  UserCircle,
+  History,
+  Building2,
+  Home,
+  CalendarCheck,
+  Lock,
 } from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Header from '@/components/navigation/Header'
 import { dataAccess } from '@/lib/services/dataAccess'
 import { GAME_CONFIG } from '@/lib/constants/config'
-import { ensureAuthenticated } from '@/lib/firebase/auth'
-import { useGameStore } from '@/lib/store/useGameStore'
-import { useSavedGameStore } from '@/lib/store/useSavedGameStore'
-import { SavedGameCard } from '@/components/home/SavedGameCard'
-import { AnimatePresence } from 'framer-motion'
-import { PremiumModal, PremiumButton } from '@/components/premium/PremiumModal'
-import { HelpModal, HelpButton } from '@/components/help/HelpModal'
-import {
-  SettingsModal,
-  SettingsButton,
-} from '@/components/settings/SettingsModal'
+import { useInitUser } from '@/hooks'
 
-export default function Home() {
+type CardColor = 'purple' | 'cyan' | 'pink'
+
+const quickAccessCards: Array<{
+  icon: typeof User
+  label: string
+  description: string
+  href: string
+  color: CardColor
+}> = [
+  {
+    icon: User,
+    label: 'Profils',
+    description: 'Gérer les joueurs',
+    href: '/profiles',
+    color: 'purple',
+  },
+  {
+    icon: BookHeart,
+    label: 'Bibliothèque',
+    description: 'Vos favoris',
+    href: '/library',
+    color: 'cyan',
+  },
+  {
+    icon: History,
+    label: 'Historique',
+    description: 'Parties jouées',
+    href: '/history',
+    color: 'pink',
+  },
+]
+
+const colorClasses: Record<CardColor, string> = {
+  purple: 'text-purple-400 group-hover:text-purple-300',
+  cyan: 'text-cyan-400 group-hover:text-cyan-300',
+  pink: 'text-pink-400 group-hover:text-pink-300',
+}
+
+const glowClasses: Record<CardColor, string> = {
+  purple: 'group-hover:shadow-[0_0_30px_rgba(168,85,247,0.3)]',
+  cyan: 'group-hover:shadow-[0_0_30px_rgba(6,182,212,0.3)]',
+  pink: 'group-hover:shadow-[0_0_30px_rgba(236,72,153,0.3)]',
+}
+
+const lockedModes = [
+  {
+    icon: Home,
+    label: 'Maison',
+    description: 'Entre amis, gênant et spicy',
+  },
+  {
+    icon: CalendarCheck,
+    label: 'Mission',
+    description: 'Un défi social par jour',
+  },
+]
+
+export default function HomePage() {
   const router = useRouter()
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [roomCode, setRoomCode] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const [isPremiumOpen, setIsPremiumOpen] = useState(false)
-  const [isHelpOpen, setIsHelpOpen] = useState(false)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
-  const setActiveSession = useGameStore((state) => state.setActiveSession)
-
-  const savedGame = useSavedGameStore((s) => s.savedGame)
-  const deleteGame = useSavedGameStore((s) => s.deleteGame)
-  const [isValidatingSavedGame, setIsValidatingSavedGame] = useState(true)
-
-  // Clean up saved games that are finished or invalid
-  useEffect(() => {
-    const validateSavedGame = async () => {
-      if (!savedGame?.id) {
-        setIsValidatingSavedGame(false)
-        return
-      }
-
-      try {
-        // Check if the session exists and its status
-        const session = await dataAccess.getSession(savedGame.id)
-
-        if (!session || session.status === 'FINISHED') {
-          deleteGame()
-        }
-      } catch {
-        // If we can't fetch, delete to be safe
-        deleteGame()
-      } finally {
-        setIsValidatingSavedGame(false)
-      }
-    }
-
-    validateSavedGame()
-  }, [savedGame?.id, deleteGame])
-
-  // Only show saved game card after validation completes
-  const hasSavedGame = !isValidatingSavedGame && !!savedGame
-
-  const handleResumeSavedGame = () => {
-    if (!savedGame) return
-    // Set active session from saved game data
-    setActiveSession(savedGame.id, savedGame.id.substring(0, 4).toUpperCase())
-    // Navigate to game page - the session ID is used as room code fallback
-    router.push(`/game/${savedGame.id}`)
-  }
-
-  const handleDeleteSavedGame = () => {
-    deleteGame()
-    // Also clear active session to prevent orphan "Reprendre la partie" button
-    setActiveSession(null, null)
-  }
+  // Initialize user data after login
+  useInitUser()
 
   const createRoom = async () => {
     setIsCreating(true)
     try {
-      // Ensure user is authenticated before creating session
-      await ensureAuthenticated()
+      // Check if user is authenticated
+      const { getAuth } = await import('firebase/auth')
+      const auth = getAuth()
+      const currentUser = auth.currentUser
+
+      if (!currentUser) {
+        alert(
+          'Vous devez être connecté pour créer une partie.\nRedirection vers la page de connexion...'
+        )
+        router.push('/auth')
+        setIsCreating(false)
+        return
+      }
 
       // Generate a random 4-letter code
       const code = Math.random().toString(36).substring(2, 6).toUpperCase()
@@ -116,145 +116,149 @@ export default function Home() {
       router.push(`/lobby/${code}?host=true`)
     } catch (error) {
       console.error('Error creating room:', error)
-      alert('Erreur lors de la création de la partie. Vérifiez la console.')
+
+      // Better error messages
+      if (error instanceof Error) {
+        if (error.message.includes('authenticated')) {
+          alert(
+            'Vous devez être connecté pour créer une partie.\nRedirection vers la page de connexion...'
+          )
+          router.push('/auth')
+        } else if (error.message.includes('permission')) {
+          alert(
+            'Erreur de permissions Firestore.\nVeuillez réessayer ou contacter le support.'
+          )
+        } else {
+          alert(`Erreur lors de la création de la partie:\n${error.message}`)
+        }
+      } else {
+        alert('Erreur inconnue lors de la création de la partie.')
+      }
+
       setIsCreating(false)
     }
   }
-
   return (
-    <main className="bg-background text-foreground relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4">
-      {/* Library Button - Top Left */}
-      <Button
-        onClick={() => router.push('/library')}
-        variant="outline"
-        className="border-primary/30 hover:border-primary bg-background/80 fixed top-4 left-4 z-50 backdrop-blur-sm"
-      >
-        <BookHeart className="mr-2 h-4 w-4" />
-        Bibliothèque
-      </Button>
+    <>
+      <Header />
 
-      {/* Premium Button - Top Left (Right of Library) */}
-      <PremiumButton
-        onClick={() => setIsPremiumOpen(true)}
-        className="fixed top-4 left-36 z-50"
-      />
-
-      {/* Help Button - Top Left (Right of Premium) */}
-      <HelpButton
-        onClick={() => setIsHelpOpen(true)}
-        className="fixed top-4 left-64 z-50"
-      />
-
-      {/* Profile Button - Top Right (Left of History) */}
-      {/* Profile Button - Top Right (Left of History) */}
-      <Button
-        variant="outline"
-        onClick={() => router.push('/profiles')}
-        className="border-primary/30 hover:border-primary bg-background/80 fixed top-4 right-48 z-50 backdrop-blur-sm"
-      >
-        <UserCircle className="mr-2 h-4 w-4" />
-        Profils
-      </Button>
-
-      {/* Settings Button - Top Right (Left of History) */}
-      <SettingsButton
-        onClick={() => setIsSettingsOpen(true)}
-        className="fixed top-4 right-28 z-50"
-      />
-
-      {/* History Button - Top Right */}
-      <Button
-        onClick={() => router.push('/history')}
-        variant="outline"
-        className="border-primary/30 hover:border-primary bg-background/80 fixed top-4 right-4 z-50 backdrop-blur-sm"
-      >
-        <Clock className="mr-2 h-4 w-4" />
-        Historique
-      </Button>
-
-      {/* Background decoration */}
-      <div className="pointer-events-none absolute top-0 left-0 -z-10 h-full w-full overflow-hidden opacity-20">
-        <div className="bg-primary absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-[100px]" />
-        <div className="bg-secondary absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full blur-[100px]" />
-      </div>
-
-      <div className="animate-in fade-in slide-in-from-bottom-10 mb-12 space-y-6 text-center duration-700">
-        <h1 className="from-primary to-secondary bg-gradient-to-r via-white bg-clip-text text-6xl font-black tracking-tighter text-transparent drop-shadow-[0_0_30px_rgba(168,85,247,0.5)] md:text-8xl">
-          SOCIAL
-          <br />
-          CHAOS
-        </h1>
-        <p className="text-muted-foreground mx-auto max-w-md text-xl font-medium md:text-2xl">
-          Le jeu de soirée qui va détruire votre dignité (et vos amitiés).
-        </p>
-      </div>
-
-      <div className="animate-in fade-in slide-in-from-bottom-10 w-full max-w-md space-y-6 delay-200 duration-1000">
-        {/* Saved Game Card */}
-        <AnimatePresence>
-          {hasSavedGame && (
-            <SavedGameCard
-              onResume={handleResumeSavedGame}
-              onDelete={handleDeleteSavedGame}
-            />
-          )}
-        </AnimatePresence>
-
-        <Card className="border-primary/20 bg-card/50 shadow-[0_0_50px_-12px_var(--primary)] backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">
-              Prêt à jouer ?
-            </CardTitle>
-            <CardDescription className="text-center">
-              Lance une partie locale et détruis des amitiés.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Button
-              onClick={createRoom}
-              disabled={isCreating}
-              className="from-primary hover:from-primary/90 w-full bg-gradient-to-r to-purple-600 py-8 text-xl font-bold shadow-[0_0_20px_var(--primary)] transition-all hover:scale-105 hover:to-purple-600/90 disabled:cursor-not-allowed disabled:opacity-50"
+      <main className="flex min-h-screen flex-col px-4 pt-28 pb-8">
+        {/* Logo Titre */}
+        <div className="mb-8 text-center">
+          {/* Titre sur deux lignes */}
+          <h1 className="mb-4 leading-none font-black tracking-tighter">
+            <span
+              className="block text-6xl text-cyan-400 sm:text-7xl"
+              style={{
+                textShadow:
+                  '0 0 30px rgba(6, 182, 212, 0.5), 0 0 60px rgba(6, 182, 212, 0.3)',
+              }}
             >
-              {isCreating ? (
-                <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-              ) : (
-                <Zap className="mr-2 h-6 w-6" />
-              )}
-              {isCreating ? 'CRÉATION...' : 'JOUER'}
-            </Button>
-          </CardContent>
-        </Card>
+              SOCIAL
+            </span>
+            <span
+              className="block text-6xl text-purple-400 sm:text-7xl"
+              style={{
+                textShadow:
+                  '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(168, 85, 247, 0.3)',
+              }}
+            >
+              CHAOS
+            </span>
+          </h1>
 
-        <div className="text-muted-foreground grid grid-cols-3 gap-4 text-center text-xs">
-          <div className="flex flex-col items-center gap-2">
-            <Users className="text-primary h-6 w-6" />
-            <span>Multi-joueurs</span>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <Skull className="text-destructive h-6 w-6" />
-            <span>Gages Hardcore</span>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <Zap className="text-secondary h-6 w-6" />
-            <span>Rythme Rapide</span>
-          </div>
+          {/* Tagline */}
+          <p className="mt-2 text-lg text-white/60">
+            Le jeu qui détruit votre dignité.
+          </p>
         </div>
-      </div>
 
-      {/* Premium Modal */}
-      <PremiumModal
-        isOpen={isPremiumOpen}
-        onClose={() => setIsPremiumOpen(false)}
-      />
+        {/* Mode principal - JOUER EN EXTÉRIEUR */}
+        <div className="mb-3">
+          <button
+            onClick={createRoom}
+            disabled={isCreating}
+            className="glow-purple flex w-full flex-col items-center justify-center gap-1 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 bg-[length:200%_100%] px-6 py-5 text-lg font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-right hover:shadow-[0_0_40px_rgba(168,85,247,0.5)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <div className="flex items-center gap-3">
+              <Building2 className="h-6 w-6" />
+              <span>{isCreating ? 'Création...' : 'JOUER EN EXTÉRIEUR'}</span>
+            </div>
+            <span className="text-sm font-normal text-white/70">
+              Gages sociaux avec des inconnus
+            </span>
+          </button>
+        </div>
 
-      {/* Help Modal */}
-      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+        {/* Modes verrouillés */}
+        <div className="mb-4 space-y-2">
+          {lockedModes.map((mode, idx) => (
+            <button
+              key={idx}
+              onClick={() => alert('Bientôt disponible !')}
+              className="glass relative flex w-full flex-col items-center justify-center gap-1 rounded-2xl px-6 py-5 opacity-50 transition-all duration-300"
+            >
+              {/* Cadenas */}
+              <div className="absolute top-3 right-3">
+                <Lock className="h-5 w-5 text-white/40" />
+              </div>
 
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
-    </main>
+              {/* Contenu */}
+              <div className="flex items-center gap-3">
+                <mode.icon className="h-6 w-6 text-white/60" />
+                <span className="text-lg font-bold text-white/70">
+                  {mode.label.toUpperCase()}
+                </span>
+              </div>
+              <span className="text-sm font-normal text-white/40">
+                {mode.description}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Séparateur */}
+        <div className="mb-6 flex items-center gap-4">
+          <div className="h-px flex-1 bg-white/10"></div>
+          <span className="text-xs tracking-wider text-white/30 uppercase">
+            Accès rapide
+          </span>
+          <div className="h-px flex-1 bg-white/10"></div>
+        </div>
+
+        {/* Bouton Premium (Mis en avant) */}
+
+        {/* 3 Cartes d'accès rapide */}
+        <div className="grid grid-cols-3 gap-3">
+          {quickAccessCards.map((card) => (
+            <Link key={card.href} href={card.href}>
+              <div
+                className={`glass-interactive group h-full rounded-2xl p-4 text-center ${glowClasses[card.color]} `}
+              >
+                {/* Icône */}
+                <div
+                  className={`mb-2 text-3xl transition-all duration-300 group-hover:scale-110 ${colorClasses[card.color]} `}
+                >
+                  <card.icon className="mx-auto h-8 w-8" />
+                </div>
+
+                {/* Label */}
+                <div className="text-sm font-semibold text-white">
+                  {card.label}
+                </div>
+
+                {/* Description */}
+                <div className="mt-1 text-xs text-white/40">
+                  {card.description}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Spacer pour pousser le contenu vers le haut */}
+        <div className="flex-1" />
+      </main>
+    </>
   )
 }

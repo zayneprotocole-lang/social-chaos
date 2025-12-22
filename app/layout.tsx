@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { QueryProvider } from '@/components/providers/QueryProvider'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
+import BackgroundOrbs from '@/components/ui/BackgroundOrbs'
+import { AuthGuard } from '@/components/auth'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,10 +40,13 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-black text-white antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <BackgroundOrbs />
         <QueryProvider>
-          {children}
+          <AuthGuard>
+            <div className="relative z-10 min-h-screen">{children}</div>
+          </AuthGuard>
           <LoadingScreen />
         </QueryProvider>
       </body>

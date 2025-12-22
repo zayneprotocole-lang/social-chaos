@@ -1,4 +1,6 @@
 // Centralized hooks exports
+export { useAuth } from './useAuth'
+export { useInitUser } from './useInitUser'
 export { useGameActions } from './useGameActions'
 export { useGameFlow } from './useGameFlow'
 export { useGameSession } from './useGameSession'

@@ -1,41 +1,84 @@
 /**
- * Store Zustand pour la gestion des profils joueurs locaux
+ * Store Zustand pour la gestion des profils joueurs
  *
- * Fonctionnalités :
- * - Persistance automatique dans localStorage
- * - Gestion du profil "host" (profil principal de l'appareil)
- * - CRUD complet sur les profils
- * - Validation des données via Zod
+ * Architecture:
+ * - hostProfile: Profil de l'utilisateur authentifié (unique)
+ * - guestProfiles: Profils invités locaux (multiples, persistés)
  */
 
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import {
-  LocalPlayerProfile,
-  CreateProfileInput,
-  UpdateProfileInput,
-  ProfileStore,
-  PROFILE_CONFIG,
-} from '@/types/profile'
-import {
-  validateCreateProfileInput,
-  validateUpdateProfileInput,
-} from '@/lib/validation/profileSchema'
+
+// ========================================
+// TYPES
+// ========================================
+
+export interface Profile {
+  id: string
+  name: string
+  avatarUri?: string // URL de l'avatar (photo Google ou data URI)
+  preferences: {
+    // Renommé de categoryPreferences pour correspondre à LocalPlayerProfile
+    want: string[] // Catégories préférées
+    avoid: string[] // Catégories à éviter
+  }
+  isHost: boolean // true si profil hôte, false si invité
+  createdAt: string
+  updatedAt: string
+}
+
+interface ProfileStoreState {
+  hostProfile: Profile | null
+  guestProfiles: Profile[]
+}
+
+interface ProfileStoreActions {
+  // Actions hôte
+  setHostProfile: (profile: Omit<Profile, 'isHost'>) => void
+  updateHostProfile: (
+    updates: Partial<Omit<Profile, 'id' | 'isHost' | 'createdAt'>>
+  ) => void
+  clearHostProfile: () => void
+
+  // Actions invités
+  addGuestProfile: (data: { name: string; avatarUri?: string }) => string
+  updateGuestProfile: (
+    id: string,
+    updates: Partial<Omit<Profile, 'id' | 'isHost' | 'createdAt'>>
+  ) => void
+  removeGuestProfile: (id: string) => void
+
+  // Helpers
+  getAllProfiles: () => Profile[]
+  getProfileById: (id: string) => Profile | null
+  getGuestProfiles: () => Profile[]
+
+  // Méthodes de compatibilité (ancien API)
+  createProfile: (input: {
+    name: string
+    avatarUri?: string
+    isHost?: boolean
+    preferences?: { want: string[]; avoid: string[] }
+  }) => Profile
+  updateProfile: (input: {
+    id: string
+    name?: string
+    avatarUri?: string
+    preferences?: { want: string[]; avoid: string[] }
+  }) => Profile | null
+}
+
+export type ProfileStore = ProfileStoreState & ProfileStoreActions
 
 // ========================================
 // HELPER FUNCTIONS
 // ========================================
 
-/**
- * Génère un UUID v4 compatible avec tous les navigateurs
- * Utilise crypto.randomUUID si disponible, sinon fallback manuel
- */
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
   }
 
-  // Fallback pour les navigateurs plus anciens
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0
     const v = c === 'x' ? r : (r & 0x3) | 0x8
@@ -43,9 +86,6 @@ function generateUUID(): string {
   })
 }
 
-/**
- * Retourne la date actuelle au format ISO 8601
- */
 function getCurrentISODate(): string {
   return new Date().toISOString()
 }
@@ -61,243 +101,287 @@ export const useProfileStore = create<ProfileStore>()(
       // STATE
       // ========================================
 
-      /** Liste de tous les profils */
-      profiles: [],
-
-      /** ID du profil host (profil principal) */
-      hostProfileId: null,
+      hostProfile: null,
+      guestProfiles: [],
 
       // ========================================
-      // ACTIONS
+      // HOST ACTIONS
       // ========================================
 
-      /**
-       * Crée un nouveau profil
-       *
-       * @param input - Données du profil (nom, avatar optionnel, isHost optionnel)
-       * @returns Le profil créé
-       * @throws Error si les données sont invalides
-       *
-       * @example
-       * const profile = createProfile({ name: 'Alex', isHost: true })
-       */
-      createProfile: (input: CreateProfileInput): LocalPlayerProfile => {
-        // Validation des données d'entrée
-        const validation = validateCreateProfileInput(input)
-        if (!validation.success) {
-          throw new Error(`Invalid profile data: ${validation.error.message}`)
+      setHostProfile: (profile: Omit<Profile, 'isHost'>) => {
+        const newHostProfile: Profile = {
+          ...profile,
+          isHost: true,
+          updatedAt: getCurrentISODate(),
         }
 
-        const validatedInput = validation.data
+        set({ hostProfile: newHostProfile })
+      },
 
-        // Création du nouveau profil
-        const newProfile: LocalPlayerProfile = {
+      updateHostProfile: (updates) => {
+        const { hostProfile } = get()
+
+        if (!hostProfile) {
+          console.warn('Cannot update host profile: no host profile exists')
+          return
+        }
+
+        const updatedHostProfile: Profile = {
+          ...hostProfile,
+          ...updates,
+          id: hostProfile.id,
+          isHost: true,
+          createdAt: hostProfile.createdAt,
+          updatedAt: getCurrentISODate(),
+        }
+
+        set({ hostProfile: updatedHostProfile })
+      },
+
+      clearHostProfile: () => {
+        set({ hostProfile: null })
+      },
+
+      // ========================================
+      // GUEST ACTIONS
+      // ========================================
+
+      addGuestProfile: (data) => {
+        const newGuest: Profile = {
           id: generateUUID(),
-          name: validatedInput.name,
-          avatarUri: validatedInput.avatarUri,
+          name: data.name,
+          avatarUri: data.avatarUri,
+          preferences: { want: [], avoid: [] },
+          isHost: false,
           createdAt: getCurrentISODate(),
-          isHost: validatedInput.isHost ?? false,
-          preferences: {
-            want: validatedInput.preferences?.want ?? [],
-            avoid: validatedInput.preferences?.avoid ?? [],
-          },
+          updatedAt: getCurrentISODate(),
         }
 
-        set((state) => {
-          let updatedProfiles = [...state.profiles]
-          let updatedHostProfileId = state.hostProfileId
+        set((state) => ({
+          guestProfiles: [...state.guestProfiles, newGuest],
+        }))
 
-          // Si ce profil est host, retirer le statut host des autres
-          if (newProfile.isHost) {
-            updatedProfiles = updatedProfiles.map((p) => ({
-              ...p,
-              isHost: false,
-            }))
-            updatedHostProfileId = newProfile.id
-          }
+        return newGuest.id
+      },
 
-          return {
-            profiles: [...updatedProfiles, newProfile],
-            hostProfileId: updatedHostProfileId,
-          }
-        })
+      updateGuestProfile: (id, updates) => {
+        const { guestProfiles } = get()
+
+        const profileIndex = guestProfiles.findIndex((p) => p.id === id)
+        if (profileIndex === -1) {
+          console.warn(`Cannot update guest profile: profile ${id} not found`)
+          return
+        }
+
+        const existingProfile = guestProfiles[profileIndex]
+        const updatedProfile: Profile = {
+          ...existingProfile,
+          ...updates,
+          id: existingProfile.id,
+          isHost: false,
+          createdAt: existingProfile.createdAt,
+          updatedAt: getCurrentISODate(),
+        }
+
+        set((state) => ({
+          guestProfiles: state.guestProfiles.map((p) =>
+            p.id === id ? updatedProfile : p
+          ),
+        }))
+      },
+
+      removeGuestProfile: (id) => {
+        set((state) => ({
+          guestProfiles: state.guestProfiles.filter((p) => p.id !== id),
+        }))
+      },
+
+      // ========================================
+      // HELPERS
+      // ========================================
+      // Helpers
+      getAllProfiles: () => {
+        const { hostProfile, guestProfiles } = get()
+        const all: Profile[] = []
+
+        if (hostProfile) {
+          all.push(hostProfile)
+        }
+
+        all.push(...guestProfiles)
+        return all
+      },
+
+      getProfileById: (id) => {
+        const { hostProfile, guestProfiles } = get()
+
+        if (hostProfile?.id === id) {
+          return hostProfile
+        }
+
+        return guestProfiles.find((p) => p.id === id) ?? null
+      },
+
+      getGuestProfiles: () => {
+        return get().guestProfiles
+      },
+
+      // Méthode de compatibilité pour createProfile (ancien API)
+      createProfile: (input: {
+        name: string
+        avatarUri?: string
+        isHost?: boolean
+        preferences?: { want: string[]; avoid: string[] }
+      }) => {
+        const newProfile: Profile = {
+          id: generateUUID(),
+          name: input.name,
+          avatarUri: input.avatarUri,
+          preferences: input.preferences || { want: [], avoid: [] },
+          isHost: input.isHost || false,
+          createdAt: getCurrentISODate(),
+          updatedAt: getCurrentISODate(),
+        }
+
+        if (input.isHost) {
+          // Créer comme profil hôte
+          set({ hostProfile: newProfile })
+        } else {
+          // Créer comme profil invité
+          set((state) => ({
+            guestProfiles: [...state.guestProfiles, newProfile],
+          }))
+        }
 
         return newProfile
       },
 
-      /**
-       * Met à jour un profil existant
-       *
-       * @param input - ID du profil et champs à mettre à jour
-       * @returns Le profil mis à jour ou null si non trouvé
-       *
-       * @example
-       * updateProfile({ id: 'xxx', name: 'New Name' })
-       * updateProfile({ id: 'xxx', avatarUri: null }) // Supprime l'avatar
-       */
-      updateProfile: (input: UpdateProfileInput): LocalPlayerProfile | null => {
-        // Validation
-        const validation = validateUpdateProfileInput(input)
-        if (!validation.success) {
-          console.error('Invalid update data:', validation.error.message)
-          return null
+      // Méthode de compatibilité pour updateProfile (ancien API)
+      updateProfile: (input: {
+        id: string
+        name?: string
+        avatarUri?: string
+        preferences?: { want: string[]; avoid: string[] }
+      }) => {
+        const { hostProfile } = get()
+
+        // Si c'est le profil host, utiliser updateHostProfile
+        if (hostProfile && hostProfile.id === input.id) {
+          const updates: Partial<Omit<Profile, 'id' | 'isHost' | 'createdAt'>> =
+            {}
+          if (input.name !== undefined) updates.name = input.name
+          if (input.avatarUri !== undefined) updates.avatarUri = input.avatarUri
+          if (input.preferences !== undefined)
+            updates.preferences = input.preferences
+
+          set((state) => ({
+            hostProfile: state.hostProfile
+              ? {
+                  ...state.hostProfile,
+                  ...updates,
+                  updatedAt: getCurrentISODate(),
+                }
+              : null,
+          }))
+
+          return hostProfile
         }
 
-        const validatedInput = validation.data
-        const { profiles } = get()
+        // Sinon utiliser updateGuestProfile
+        const guest = get().guestProfiles.find((p) => p.id === input.id)
+        if (guest) {
+          const updates: Partial<Omit<Profile, 'id' | 'isHost' | 'createdAt'>> =
+            {}
+          if (input.name !== undefined) updates.name = input.name
+          if (input.avatarUri !== undefined) updates.avatarUri = input.avatarUri
+          if (input.preferences !== undefined)
+            updates.preferences = input.preferences
 
-        // Trouver le profil à mettre à jour
-        const profileIndex = profiles.findIndex(
-          (p) => p.id === validatedInput.id
-        )
-        if (profileIndex === -1) {
-          console.error(`Profile not found: ${validatedInput.id}`)
-          return null
+          set((state) => ({
+            guestProfiles: state.guestProfiles.map((p) =>
+              p.id === input.id
+                ? { ...p, ...updates, updatedAt: getCurrentISODate() }
+                : p
+            ),
+          }))
+
+          return guest
         }
 
-        const existingProfile = profiles[profileIndex]
-
-        // Construire le profil mis à jour
-        const updatedProfile: LocalPlayerProfile = {
-          ...existingProfile,
-          name: validatedInput.name ?? existingProfile.name,
-          // Si avatarUri est null, on le supprime, sinon on garde la valeur
-          avatarUri:
-            validatedInput.avatarUri === null
-              ? undefined
-              : (validatedInput.avatarUri ?? existingProfile.avatarUri),
-          preferences: {
-            want:
-              validatedInput.preferences?.want ??
-              existingProfile.preferences?.want ??
-              [],
-            avoid:
-              validatedInput.preferences?.avoid ??
-              existingProfile.preferences?.avoid ??
-              [],
-          },
-        }
-
-        set((state) => ({
-          profiles: state.profiles.map((p) =>
-            p.id === validatedInput.id ? updatedProfile : p
-          ),
-        }))
-
-        return updatedProfile
-      },
-
-      /**
-       * Supprime un profil
-       *
-       * @param id - ID du profil à supprimer
-       * @returns true si supprimé, false si non trouvé
-       *
-       * Note: Si le profil supprimé était host, hostProfileId devient null
-       */
-      deleteProfile: (id: string): boolean => {
-        const { profiles } = get()
-
-        const profileExists = profiles.some((p) => p.id === id)
-        if (!profileExists) {
-          return false
-        }
-
-        set((state) => ({
-          profiles: state.profiles.filter((p) => p.id !== id),
-          // Si on supprime le host, réinitialiser hostProfileId
-          hostProfileId:
-            state.hostProfileId === id ? null : state.hostProfileId,
-        }))
-
-        return true
-      },
-
-      /**
-       * Définit un profil comme host (profil principal)
-       *
-       * @param id - ID du profil à définir comme host
-       * @returns true si réussi, false si le profil n'existe pas
-       *
-       * Note: Le précédent host perd son statut automatiquement
-       */
-      setHostProfile: (id: string): boolean => {
-        const { profiles } = get()
-
-        const profileExists = profiles.some((p) => p.id === id)
-        if (!profileExists) {
-          return false
-        }
-
-        set((state) => ({
-          profiles: state.profiles.map((p) => ({
-            ...p,
-            isHost: p.id === id,
-          })),
-          hostProfileId: id,
-        }))
-
-        return true
-      },
-
-      /**
-       * Récupère le profil host actuel
-       *
-       * @returns Le profil host ou null s'il n'y en a pas
-       */
-      getHostProfile: (): LocalPlayerProfile | null => {
-        const { profiles, hostProfileId } = get()
-
-        if (!hostProfileId) {
-          // Fallback: chercher un profil avec isHost: true
-          const hostByFlag = profiles.find((p) => p.isHost)
-          return hostByFlag ?? null
-        }
-
-        return profiles.find((p) => p.id === hostProfileId) ?? null
-      },
-
-      /**
-       * Récupère un profil par son ID
-       *
-       * @param id - ID du profil recherché
-       * @returns Le profil ou null si non trouvé
-       */
-      getProfileById: (id: string): LocalPlayerProfile | null => {
-        const { profiles } = get()
-        return profiles.find((p) => p.id === id) ?? null
-      },
-
-      /**
-       * Récupère tous les profils sauf le host
-       * Utile pour l'affichage dans le lobby
-       *
-       * @returns Liste des profils non-host
-       */
-      getNonHostProfiles: (): LocalPlayerProfile[] => {
-        const { profiles, hostProfileId } = get()
-        return profiles.filter((p) => p.id !== hostProfileId && !p.isHost)
+        return null
       },
     }),
     {
-      name: PROFILE_CONFIG.STORAGE_KEY,
+      name: 'social-chaos-profiles',
       storage: createJSONStorage(() => localStorage),
 
-      // Partialize: on persiste tout l'état
       partialize: (state) => ({
-        profiles: state.profiles,
-        hostProfileId: state.hostProfileId,
+        hostProfile: state.hostProfile,
+        guestProfiles: state.guestProfiles,
       }),
 
-      // Version du store pour migrations futures
-      version: 1,
+      version: 2, // Incremented version for migration
 
-      // Migration handler pour les versions futures
-      migrate: (persistedState, version) => {
-        // Version 0 -> 1: pas de migration nécessaire pour l'instant
-        if (version === 0) {
-          return persistedState as ProfileStore
+      migrate: (persistedState: unknown, version) => {
+        // Migration from v1 (old structure) to v2 (new structure)
+        if (version === 1) {
+          interface OldProfile {
+            id: string
+            name: string
+            avatarUri?: string
+            createdAt: string
+            isHost: boolean
+            preferences?: {
+              want: string[]
+              avoid: string[]
+            }
+          }
+
+          const oldState = persistedState as {
+            profiles: OldProfile[]
+            hostProfileId: string | null
+          }
+
+          // Find host profile from old structure
+          const oldHostProfile = oldState.hostProfileId
+            ? oldState.profiles.find((p) => p.id === oldState.hostProfileId)
+            : oldState.profiles.find((p) => p.isHost)
+
+          // Convert old profiles to new structure
+          const newHostProfile: Profile | null = oldHostProfile
+            ? {
+                id: oldHostProfile.id,
+                name: oldHostProfile.name,
+                avatarUri: oldHostProfile.avatarUri,
+                preferences: oldHostProfile.preferences || {
+                  want: [],
+                  avoid: [],
+                },
+                isHost: true,
+                createdAt: oldHostProfile.createdAt,
+                updatedAt: new Date().toISOString(),
+              }
+            : null
+
+          // Convert guest profiles
+          const newGuestProfiles: Profile[] = oldState.profiles
+            .filter((p) => p.id !== oldState.hostProfileId && !p.isHost)
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              avatarUri: p.avatarUri,
+              preferences: p.preferences || { want: [], avoid: [] },
+              isHost: false,
+              createdAt: p.createdAt,
+              updatedAt: new Date().toISOString(),
+            }))
+
+          return {
+            hostProfile: newHostProfile,
+            guestProfiles: newGuestProfiles,
+          }
         }
+
         return persistedState as ProfileStore
       },
     }
@@ -310,41 +394,36 @@ export const useProfileStore = create<ProfileStore>()(
 
 /**
  * Hook pour récupérer uniquement le profil host
- * Optimisé pour éviter les re-renders inutiles
  */
 export function useHostProfile() {
-  return useProfileStore((state) => {
-    const { profiles, hostProfileId } = state
-    if (!hostProfileId) {
-      return profiles.find((p) => p.isHost) ?? null
-    }
-    return profiles.find((p) => p.id === hostProfileId) ?? null
-  })
+  return useProfileStore((state) => state.hostProfile)
 }
 
 /**
  * Hook pour récupérer tous les profils
  */
-export function useProfiles() {
-  return useProfileStore((state) => state.profiles)
+export function useAllProfiles() {
+  return useProfileStore((state) => state.getAllProfiles())
 }
 
 /**
- * Hook pour récupérer les profils non-host
+ * Hook pour récupérer tous les profils (alias de useAllProfiles pour compatibilité)
+ * @deprecated Utilisezuse AllProfiles à la place
  */
-export function useNonHostProfiles() {
-  return useProfileStore((state) => {
-    const { profiles, hostProfileId } = state
-    return profiles.filter((p) => p.id !== hostProfileId && !p.isHost)
-  })
+export function useProfiles() {
+  return useAllProfiles()
+}
+
+/**
+ * Hook pour récupérer les profils invités
+ */
+export function useGuestProfiles() {
+  return useProfileStore((state) => state.guestProfiles)
 }
 
 /**
  * Hook pour vérifier si un profil host existe
  */
 export function useHasHostProfile() {
-  return useProfileStore(
-    (state) =>
-      state.hostProfileId !== null || state.profiles.some((p) => p.isHost)
-  )
+  return useProfileStore((state) => state.hostProfile !== null)
 }

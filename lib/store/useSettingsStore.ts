@@ -20,6 +20,7 @@ interface SettingsState {
 
   setLanguage: (language: Language) => void
   toggleColorblindMode: () => void
+  setColorblindMode: (enabled: boolean) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -34,6 +35,8 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           colorblindMode: !state.colorblindMode,
         })),
+
+      setColorblindMode: (enabled) => set({ colorblindMode: enabled }),
     }),
     {
       name: 'social-chaos-settings',

@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Heart, Trash2, BookHeart } from 'lucide-react'
+import { BookHeart, Trash2 } from 'lucide-react'
+import PageHeader from '@/components/ui/PageHeader'
+import GlassCard from '@/components/ui/GlassCard'
+import PrimaryButton from '@/components/ui/PrimaryButton'
 import { Dare } from '@/lib/types'
 
 export default function LibraryPage() {
@@ -31,88 +31,60 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="bg-background min-h-screen p-4 pb-24">
-      <header className="mb-8 flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push('/')}
-          className="text-primary hover:text-primary/80"
-        >
-          <ArrowLeft className="h-6 w-6" />
-        </Button>
-        <div>
-          <h1 className="from-primary to-secondary flex items-center gap-2 bg-gradient-to-r bg-clip-text text-3xl font-black text-transparent">
-            <BookHeart className="text-primary h-8 w-8" />
-            BIBLIOTHÈQUE
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Vos gages favoris sauvegardés
-          </p>
-        </div>
-      </header>
+    <>
+      <PageHeader title="Bibliothèque" />
 
-      {favorites.length === 0 ? (
-        <Card className="bg-card/50 border-primary/20 p-12">
-          <div className="space-y-4 text-center">
-            <Heart className="text-muted-foreground mx-auto h-16 w-16 opacity-50" />
-            <h2 className="text-muted-foreground text-xl font-bold">
-              Aucun favori pour le moment
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-md text-sm">
-              Pendant une partie, cliquez sur le cœur sur les cartes de gage
-              pour les ajouter à votre bibliothèque.
+      <main className="px-4 pt-20 pb-8">
+        {favorites.length === 0 ? (
+          // État vide
+          <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+            <div className="glass mb-6 flex h-20 w-20 items-center justify-center rounded-full">
+              <BookHeart className="h-10 w-10 text-cyan-400" />
+            </div>
+            <h2 className="mb-2 text-xl font-bold text-white">Aucun favori</h2>
+            <p className="mb-6 max-w-md text-white/60">
+              Pendant une partie, likez des gages pour les retrouver ici.
             </p>
-            <Button onClick={() => router.push('/')} className="mt-4">
-              Retour à l&apos;accueil
-            </Button>
+            <PrimaryButton onClick={() => router.push('/')}>
+              Retour à l'accueil
+            </PrimaryButton>
           </div>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {favorites.map((dare) => (
-            <Card
-              key={dare.id}
-              className="bg-card/50 border-primary/20 group hover:border-primary/50 relative transition-all"
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2">
-                  <Badge
-                    variant="outline"
-                    className="border-primary text-primary"
-                  >
+        ) : (
+          // Liste des favoris
+          <div className="grid gap-4 md:grid-cols-2">
+            {favorites.map((dare) => (
+              <GlassCard key={dare.id} className="p-4">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <span className="rounded-full bg-purple-500/20 px-2 py-1 text-xs font-medium text-purple-300">
                     Niveau {dare.difficultyLevel}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  </span>
+                  <button
                     onClick={() => removeFavorite(dare.id)}
-                    className="text-destructive hover:bg-destructive/10 h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="rounded-full p-2 text-red-400 transition-colors hover:bg-red-500/20"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-4 text-lg leading-tight font-bold">
+
+                <p className="mb-3 text-base leading-tight font-bold text-white">
                   {dare.content}
                 </p>
+
                 <div className="flex flex-wrap gap-1">
                   {dare.categoryTags.map((tag) => (
-                    <Badge
+                    <span
                       key={tag}
-                      variant="secondary"
-                      className="text-[10px]"
+                      className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60"
                     >
                       {tag}
-                    </Badge>
+                    </span>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+              </GlassCard>
+            ))}
+          </div>
+        )}
+      </main>
+    </>
   )
 }

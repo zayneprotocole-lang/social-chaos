@@ -123,6 +123,8 @@ export interface SessionDocument {
   status: 'WAITING' | 'ACTIVE' | 'FINISHED'
   settings: GameSettings
   createdAt: Timestamp
+  creatorId: string // User ID of session creator (required for Firestore rules)
+  participantIds: string[] // User IDs of all participants (required for Firestore rules)
 
   // V4.0 Fields
   roundsTotal: number

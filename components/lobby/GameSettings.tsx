@@ -73,30 +73,76 @@ export default function GameSettingsPanel({
 
   return (
     <div className="space-y-8 rounded-xl border border-white/10 bg-black/80 p-6 shadow-[0_0_20px_rgba(0,0,0,0.5)] backdrop-blur-md">
-      {/* Alcohol Mode Toggle */}
-      <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center gap-3">
-          {settings.alcoholMode ? (
-            <Beer className="h-6 w-6 text-yellow-400" />
-          ) : (
-            <Coffee className="h-6 w-6 text-green-400" />
-          )}
-          <div className="flex flex-col">
-            <span className="text-lg font-bold text-white">
-              Mode {settings.alcoholMode ? 'Soirée Arrosée' : 'Soft / Chill'}
-            </span>
-            <span className="text-xs text-gray-400">
-              {settings.alcoholMode
-                ? 'Les gages alcool sont activés'
-                : 'Aucun gage ne demande de boire'}
-            </span>
+      {/* Alcohol Mode Toggle - Carte explicative */}
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-xl border-2 p-5 transition-all duration-300',
+          settings.alcoholMode
+            ? 'border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20'
+            : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-cyan-500/10'
+        )}
+        style={{
+          boxShadow: settings.alcoholMode
+            ? '0 0 30px rgba(245, 158, 11, 0.2)'
+            : '0 0 20px rgba(6, 182, 212, 0.15)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          {/* Icône + Contenu */}
+          <div className="flex items-start gap-4">
+            {/* Icône dynamique */}
+            <div
+              className={cn(
+                'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl transition-all duration-300',
+                settings.alcoholMode
+                  ? 'bg-amber-500/30 text-amber-400'
+                  : 'bg-cyan-500/20 text-cyan-400'
+              )}
+            >
+              {settings.alcoholMode ? (
+                <Beer className="h-6 w-6" />
+              ) : (
+                <Coffee className="h-6 w-6" />
+              )}
+            </div>
+
+            {/* Texte explicatif */}
+            <div className="flex flex-col gap-1">
+              <span
+                className={cn(
+                  'text-lg font-bold transition-colors',
+                  settings.alcoholMode ? 'text-amber-300' : 'text-cyan-300'
+                )}
+              >
+                {settings.alcoholMode
+                  ? '🍺 Mode Alcool'
+                  : '☕ Mode Sans Alcool'}
+              </span>
+              <span className="text-sm text-white/70">
+                {settings.alcoholMode
+                  ? 'Les pénalités seront des gorgées à boire'
+                  : 'Les pénalités seront des vérités à avouer'}
+              </span>
+              <span className="mt-1 text-xs text-white/40">
+                {settings.alcoholMode
+                  ? 'Quantité selon la difficulté du gage'
+                  : 'Confessions embarrassantes garanties'}
+              </span>
+            </div>
           </div>
+
+          {/* Toggle */}
+          <Switch
+            checked={settings.alcoholMode}
+            onCheckedChange={toggleAlcoholMode}
+            className={cn(
+              'mt-1 flex-shrink-0',
+              settings.alcoholMode
+                ? 'data-[state=checked]:bg-amber-500'
+                : 'data-[state=unchecked]:bg-cyan-500/50'
+            )}
+          />
         </div>
-        <Switch
-          checked={settings.alcoholMode}
-          onCheckedChange={toggleAlcoholMode}
-          className="data-[state=checked]:bg-yellow-500"
-        />
       </div>
 
       {/* Difficulty Selector */}
@@ -206,29 +252,51 @@ export default function GameSettingsPanel({
         <Label className="text-lg font-bold tracking-wider text-white uppercase">
           Catégories
         </Label>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {CATEGORIES.map((cat) => {
             if (!settings.alcoholMode && cat.id === 'Alcool') return null
             const isActive = settings.tags.includes(cat.id)
 
             return (
-              <div
+              <button
                 key={cat.id}
                 onClick={() => toggleCategory(cat.id)}
                 className={cn(
-                  'cursor-pointer rounded-md border px-3 py-2 font-mono text-sm transition-all select-none',
+                  'flex min-h-[48px] items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-sans text-sm font-medium transition-all duration-200 select-none',
+                  'active:scale-95',
                   isActive
-                    ? `${cat.color} border-transparent text-white shadow-lg`
-                    : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/30'
+                    ? `${cat.color} border-white/30 font-bold text-white shadow-lg`
+                    : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white/80'
                 )}
+                style={
+                  isActive
+                    ? {
+                        boxShadow: `0 4px 20px ${
+                          cat.color.includes('yellow')
+                            ? 'rgba(234, 179, 8, 0.4)'
+                            : cat.color.includes('orange')
+                              ? 'rgba(249, 115, 22, 0.4)'
+                              : cat.color.includes('green')
+                                ? 'rgba(34, 197, 94, 0.4)'
+                                : cat.color.includes('red')
+                                  ? 'rgba(239, 68, 68, 0.4)'
+                                  : cat.color.includes('pink')
+                                    ? 'rgba(236, 72, 153, 0.4)'
+                                    : cat.color.includes('blue')
+                                      ? 'rgba(59, 130, 246, 0.4)'
+                                      : 'rgba(168, 85, 247, 0.4)'
+                        }`,
+                      }
+                    : undefined
+                }
               >
                 {cat.label}
-              </div>
+              </button>
             )
           })}
 
           {/* Custom / Library Link (Toggle) */}
-          <div
+          <button
             onClick={() => {
               const newSettings = {
                 ...settings,
@@ -238,15 +306,23 @@ export default function GameSettingsPanel({
               onUpdate(newSettings)
             }}
             className={cn(
-              'flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 font-mono text-sm transition-all select-none',
+              'flex min-h-[48px] items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-3 font-sans text-sm font-medium transition-all duration-200 select-none',
+              'active:scale-95',
               settings.includeCustomDares
-                ? 'border-transparent bg-pink-500 text-white shadow-lg'
-                : 'border-white/30 bg-white/5 text-white hover:border-white/60 hover:bg-white/10'
+                ? 'border-white/30 bg-pink-500 font-bold text-white shadow-lg'
+                : 'border-white/20 bg-white/5 text-white/60 hover:border-white/40 hover:bg-white/10 hover:text-white/80'
             )}
+            style={
+              settings.includeCustomDares
+                ? {
+                    boxShadow: '0 4px 20px rgba(236, 72, 153, 0.4)',
+                  }
+                : undefined
+            }
           >
             <BookHeart className="h-4 w-4" />
             Personnalisé
-          </div>
+          </button>
         </div>
       </div>
     </div>

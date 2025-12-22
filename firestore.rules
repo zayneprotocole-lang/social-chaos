@@ -8,49 +8,98 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Helper to check if the requesting user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
     // Helper to check if user is a participant in the session
     function isParticipant(sessionId) {
-      return isAuthenticated() && 
+      return isAuthenticated() &&
              request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)/players).data.keys();
     }
-    
+
+
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      // Read: Users can read their own profile
+      allow read: if isAuthenticated() && isOwner(userId);
+
+      // Create: Users can create their own profile
+      allow create: if isAuthenticated() && isOwner(userId);
+
+      // Update: Users can update their own profile
+      allow update: if isAuthenticated() && isOwner(userId);
+
+      // Delete: Users can delete their own profile
+      allow delete: if isAuthenticated() && isOwner(userId);
+
+      // Subcollection: data (profile, stats, etc.)
+      match /data/{docId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+
+      // Subcollection: favorites
+      match /favorites/{dareId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+      
+      // Subcollection: history
+      match /history/{gameId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
 
     match /sessions/{sessionId} {
-      // Anyone authenticated can read sessions (to join/view)
-      allow read: if isAuthenticated();
+      // Read: Only participants can view the session
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.creatorId ||
+        request.auth.uid in resource.data.participantIds
+      );
 
-      // Creation: Authenticated users can create sessions
-      allow create: if isAuthenticated();
+      // Create: Authenticated users can create with validation
+      allow create: if isAuthenticated() && 
+        request.resource.data.creatorId == request.auth.uid &&
+        request.resource.data.participantIds.size() <= 20;
 
       // Update: 
       // 1. Must be authenticated
-      // 2. Cannot modify if status is 'FINISHED' (Immutable History)
-      allow update: if isAuthenticated() 
-                    && resource.data.status != 'FINISHED';
+      // 2. Must be participant or creator
+      // 3. Cannot modify if status is 'FINISHED' (Immutable History)
+      allow update: if isAuthenticated() && 
+                    (request.auth.uid == resource.data.creatorId || 
+                     request.auth.uid in resource.data.participantIds) &&
+                    resource.data.status != 'FINISHED';
 
-      // Delete: Only if not finished (prevent deleting history)
-      allow delete: if isAuthenticated() 
-                    && resource.data.status != 'FINISHED';
+      // Delete: Only creator can delete (unless finished)
+      allow delete: if isAuthenticated() && 
+                    request.auth.uid == resource.data.creatorId &&
+                    resource.data.status != 'FINISHED';
 
       // Subcollection: Players
       match /players/{playerId} {
-        // Anyone in the session can read players
-        allow read: if isAuthenticated();
+        // Anyone who can read the session can read players
+        allow read: if isAuthenticated() && (
+          request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.creatorId ||
+          request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participantIds
+        );
         
-        // Any authenticated user can add players to a session
-        allow create: if isAuthenticated();
+        // Only participants can add players
+        allow create: if isAuthenticated() && (
+          request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.creatorId ||
+          request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participantIds
+        );
         
-        // Anyone in the session can update players (unless game is finished)
-        allow update: if isAuthenticated()
-                      && get(/databases/$(database)/documents/sessions/$(sessionId)).data.status != 'FINISHED';
+        // Only participants can update players (unless game is finished)
+        allow update: if isAuthenticated() &&
+                      (request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.creatorId ||
+                       request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participantIds) &&
+                      get(/databases/$(database)/documents/sessions/$(sessionId)).data.status != 'FINISHED';
         
-        // Anyone in the session can delete players (unless game is finished)
-        allow delete: if isAuthenticated()
-                      && get(/databases/$(database)/documents/sessions/$(sessionId)).data.status != 'FINISHED';
+        // Only participants can delete players (unless game is finished)
+        allow delete: if isAuthenticated() &&
+                      (request.auth.uid == get(/databases/$(database)/documents/sessions/$(sessionId)).data.creatorId ||
+                       request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participantIds) &&
+                      get(/databases/$(database)/documents/sessions/$(sessionId)).data.status != 'FINISHED';
       }
     }
     
