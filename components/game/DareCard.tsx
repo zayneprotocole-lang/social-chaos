@@ -131,51 +131,166 @@ const DareCard = React.memo(
           }}
         >
           {/* Front (The Dare) - visible when isVisible=true */}
-          <Card
-            className="border-primary/50 bg-card/95 absolute inset-0 flex flex-col justify-between shadow-[0_0_30px_rgba(168,85,247,0.2)] backdrop-blur-sm"
+          <motion.div
+            className={cn(
+              'absolute inset-0 overflow-hidden rounded-2xl border-2 backdrop-blur-sm',
+              currentDifficulty === 1 &&
+                'border-cyan-500/60 bg-gradient-to-br from-cyan-900/50 via-teal-900/40 to-cyan-950/50',
+              currentDifficulty === 2 &&
+                'border-purple-500/60 bg-gradient-to-br from-purple-900/50 via-fuchsia-900/40 to-purple-950/50',
+              currentDifficulty === 3 &&
+                'border-orange-500/60 bg-gradient-to-br from-orange-900/50 via-red-900/40 to-orange-950/50'
+            )}
             style={{
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
+              boxShadow: `0 0 30px ${difficultyDisplay.glowColor}`,
             }}
           >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant="outline"
-                  className="border-primary text-primary text-xs"
-                >
-                  {DIFFICULTY_CONFIG[dare.difficultyLevel]?.name ||
-                    difficultyDisplay.name}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleFavorite}
-                  className="h-7 w-7 transition-transform hover:scale-110"
-                >
-                  <Heart
-                    className={`h-4 w-4 transition-all ${isFavorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
-                  />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-1 items-center justify-center p-4 text-center">
-              <p className="text-foreground text-xl leading-tight font-black md:text-2xl">
+            {/* Decorative inner border */}
+            <div
+              className={cn(
+                'pointer-events-none absolute inset-2 rounded-xl border',
+                currentDifficulty === 1 && 'border-cyan-400/20',
+                currentDifficulty === 2 && 'border-purple-400/20',
+                currentDifficulty === 3 && 'border-orange-400/20'
+              )}
+            />
+
+            {/* Diamond pattern background (subtle) */}
+            <div className="absolute inset-0 opacity-5">
+              <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <pattern
+                    id="diamonds-front"
+                    x="0"
+                    y="0"
+                    width="20"
+                    height="20"
+                    patternUnits="userSpaceOnUse"
+                  >
+                    <path d="M10 0 L20 10 L10 20 L0 10 Z" fill="white" />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#diamonds-front)" />
+              </svg>
+            </div>
+
+            {/* Corner decorations (matching back) */}
+            <div
+              className={cn(
+                'absolute top-3 left-3 text-sm font-bold',
+                currentDifficulty === 1 && 'text-cyan-400/30',
+                currentDifficulty === 2 && 'text-purple-400/30',
+                currentDifficulty === 3 && 'text-orange-400/30'
+              )}
+            >
+              ♠
+            </div>
+            <div
+              className={cn(
+                'absolute top-3 right-3 text-sm font-bold',
+                currentDifficulty === 1 && 'text-cyan-400/30',
+                currentDifficulty === 2 && 'text-purple-400/30',
+                currentDifficulty === 3 && 'text-orange-400/30'
+              )}
+            >
+              ♥
+            </div>
+
+            {/* Header: Category + Favorite */}
+            <div className="relative z-10 flex items-center justify-between px-4 pt-4">
+              <Badge
+                className={cn(
+                  'border text-[10px] font-bold tracking-wider uppercase',
+                  currentDifficulty === 1 &&
+                    'border-cyan-400/50 bg-cyan-500/20 text-cyan-300',
+                  currentDifficulty === 2 &&
+                    'border-purple-400/50 bg-purple-500/20 text-purple-300',
+                  currentDifficulty === 3 &&
+                    'border-orange-400/50 bg-orange-500/20 text-orange-300'
+                )}
+              >
+                {dare.categoryTags[0] || 'Défi'}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleFavorite}
+                className={cn(
+                  'h-8 w-8 rounded-full transition-all hover:scale-110',
+                  currentDifficulty === 1 && 'hover:bg-cyan-500/20',
+                  currentDifficulty === 2 && 'hover:bg-purple-500/20',
+                  currentDifficulty === 3 && 'hover:bg-orange-500/20'
+                )}
+              >
+                <Heart
+                  className={cn(
+                    'h-5 w-5 transition-all',
+                    isFavorite
+                      ? 'scale-110 fill-red-500 text-red-500'
+                      : 'text-white/60'
+                  )}
+                />
+              </Button>
+            </div>
+
+            {/* Content: Dare text */}
+            <div className="relative z-10 flex flex-1 items-center justify-center px-5 py-4">
+              <p className="text-center text-lg leading-tight font-black text-white drop-shadow-lg min-[390px]:text-xl min-[430px]:text-2xl">
                 {dare.content}
               </p>
-            </CardContent>
-            <CardFooter className="flex justify-center gap-1.5 pb-4">
-              {dare.categoryTags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="text-[9px] opacity-70"
+            </div>
+
+            {/* Footer: Difficulty badge */}
+            <div className="relative z-10 flex justify-center pb-4">
+              <div
+                className={cn(
+                  'flex items-center gap-2 rounded-full border px-4 py-1.5 backdrop-blur-sm',
+                  currentDifficulty === 1 &&
+                    'border-cyan-400/40 bg-cyan-500/20',
+                  currentDifficulty === 2 &&
+                    'border-purple-400/40 bg-purple-500/20',
+                  currentDifficulty === 3 &&
+                    'border-orange-400/40 bg-orange-500/20'
+                )}
+              >
+                <span className="text-base">{difficultyDisplay.icon}</span>
+                <span
+                  className={cn(
+                    'text-[10px] font-bold tracking-wider uppercase',
+                    currentDifficulty === 1 && 'text-cyan-300',
+                    currentDifficulty === 2 && 'text-purple-300',
+                    currentDifficulty === 3 && 'text-orange-300'
+                  )}
                 >
-                  {tag}
-                </Badge>
-              ))}
-            </CardFooter>
-          </Card>
+                  {difficultyDisplay.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom corner decorations */}
+            <div
+              className={cn(
+                'absolute bottom-3 left-3 rotate-180 text-sm font-bold',
+                currentDifficulty === 1 && 'text-cyan-400/30',
+                currentDifficulty === 2 && 'text-purple-400/30',
+                currentDifficulty === 3 && 'text-orange-400/30'
+              )}
+            >
+              ♦
+            </div>
+            <div
+              className={cn(
+                'absolute right-3 bottom-3 rotate-180 text-sm font-bold',
+                currentDifficulty === 1 && 'text-cyan-400/30',
+                currentDifficulty === 2 && 'text-purple-400/30',
+                currentDifficulty === 3 && 'text-orange-400/30'
+              )}
+            >
+              ♣
+            </div>
+          </motion.div>
 
           {/* Back (Card Back Design) - visible when isVisible=false */}
           <AnimatePresence>

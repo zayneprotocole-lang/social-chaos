@@ -55,32 +55,32 @@ export default function GameTimer({
   const getColors = () => {
     if (isGolden) {
       return {
-        bar: 'bg-amber-500 shadow-amber-500/50',
-        text: 'text-amber-400',
-        border: 'border-amber-500/30',
+        bar: 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]',
+        text: 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]',
+        border: 'border-amber-500/40',
       }
     }
     if (progressPercent < 20) {
-      // Critical - Red with pulse
+      // Critical - Red with pulse and intense glow
       return {
-        bar: 'bg-red-500 shadow-red-500/50',
-        text: 'text-red-500 animate-pulse',
-        border: 'border-red-500/30',
+        bar: 'bg-gradient-to-r from-red-500 to-rose-500 shadow-[0_0_20px_rgba(239,68,68,0.7)]',
+        text: 'text-red-500 animate-pulse drop-shadow-[0_0_12px_rgba(239,68,68,0.7)]',
+        border: 'border-red-500/50',
       }
     }
     if (progressPercent < 50) {
-      // Warning - Orange/Amber
+      // Warning - Orange/Amber gradient
       return {
-        bar: 'bg-orange-500 shadow-orange-500/50',
-        text: 'text-orange-400',
-        border: 'border-orange-500/30',
+        bar: 'bg-gradient-to-r from-orange-500 to-amber-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]',
+        text: 'text-orange-400 drop-shadow-[0_0_6px_rgba(249,115,22,0.5)]',
+        border: 'border-orange-500/40',
       }
     }
-    // Comfortable - Cyan/Primary
+    // Comfortable - Cyan gradient
     return {
-      bar: 'bg-cyan-500 shadow-cyan-500/50',
-      text: 'text-cyan-400',
-      border: 'border-cyan-500/30',
+      bar: 'bg-gradient-to-r from-cyan-400 to-teal-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]',
+      text: 'text-cyan-400 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]',
+      border: 'border-cyan-500/40',
     }
   }
 

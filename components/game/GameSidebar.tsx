@@ -99,7 +99,7 @@ export default function GameSidebar({
                   className={cn(
                     'flex flex-col items-center rounded-lg p-1 transition-all min-[390px]:rounded-xl min-[390px]:p-1.5',
                     isActive
-                      ? 'glass-strong shadow-[0_0_15px_rgba(168,85,247,0.3)] ring-2 ring-purple-500'
+                      ? 'bg-purple-500/10 shadow-[0_0_25px_rgba(168,85,247,0.4)] ring-2 ring-purple-400'
                       : 'glass',
                     canSwap &&
                       'cursor-pointer ring-2 ring-cyan-400/50 hover:ring-cyan-400',
@@ -156,12 +156,15 @@ export default function GameSidebar({
                     )}
                   </div>
 
-                  {/* Score sous l'avatar */}
                   <span
                     className={cn(
                       textSize,
                       'mt-0.5 font-bold',
-                      canSwap ? 'text-cyan-400' : 'text-purple-400'
+                      isActive
+                        ? 'text-amber-400 drop-shadow-[0_0_4px_rgba(245,158,11,0.5)]'
+                        : canSwap
+                          ? 'text-cyan-400'
+                          : 'text-purple-400'
                     )}
                   >
                     {player.score || 0}
