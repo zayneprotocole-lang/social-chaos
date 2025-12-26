@@ -241,55 +241,10 @@ export default function GamePage() {
       )}
     >
       {/* Background Image */}
-      <div className="pointer-events-none fixed inset-0 bg-[url('/game-background.png')] bg-cover bg-center opacity-30" />
+      <div className="pointer-events-none fixed inset-0 bg-[url('/game-background.png')] bg-cover bg-center" />
 
       {/* Background Effects */}
       <div className="pointer-events-none fixed inset-0 bg-[url('/grid.svg')] opacity-5" />
-
-      {/* Decorative Orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        {/* Purple orb - top left */}
-        <motion.div
-          className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-purple-600/20 blur-3xl"
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.2, 0.3, 0.2],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        {/* Cyan orb - bottom right */}
-        <motion.div
-          className="absolute -right-24 -bottom-24 h-80 w-80 rounded-full bg-cyan-500/20 blur-3xl"
-          animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.2, 0.25, 0.2],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: 2,
-          }}
-        />
-        {/* Pink orb - center right */}
-        <motion.div
-          className="absolute top-1/2 -right-16 h-64 w-64 -translate-y-1/2 rounded-full bg-pink-500/15 blur-3xl"
-          animate={{
-            scale: [1, 1.08, 1],
-            opacity: [0.15, 0.2, 0.15],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: 4,
-          }}
-        />
-      </div>
 
       {/* 1. Zone joueurs + manche - HAUT */}
       <div className="relative z-10 flex-none">

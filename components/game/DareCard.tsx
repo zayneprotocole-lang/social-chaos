@@ -158,7 +158,7 @@ const DareCard = React.memo(
             />
 
             {/* Card front background image */}
-            <div className="absolute inset-0 bg-[url('/card-front.png')] bg-cover bg-center opacity-40" />
+            <div className="absolute inset-0 bg-[url('/card-front.png')] bg-cover bg-center" />
 
             {/* Diamond pattern background (subtle) */}
             <div className="absolute inset-0 opacity-5">
