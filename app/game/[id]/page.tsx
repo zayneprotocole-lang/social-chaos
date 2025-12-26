@@ -240,8 +240,11 @@ export default function GamePage() {
         getBackgroundClass()
       )}
     >
+      {/* Background Image */}
+      <div className="pointer-events-none fixed inset-0 bg-[url('/game-background.png')] bg-cover bg-center opacity-30" />
+
       {/* Background Effects */}
-      <div className="pointer-events-none fixed inset-0 bg-[url('/grid.svg')] opacity-10" />
+      <div className="pointer-events-none fixed inset-0 bg-[url('/grid.svg')] opacity-5" />
 
       {/* Decorative Orbs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">

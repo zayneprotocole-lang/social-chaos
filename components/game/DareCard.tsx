@@ -157,6 +157,9 @@ const DareCard = React.memo(
               )}
             />
 
+            {/* Card front background image */}
+            <div className="absolute inset-0 bg-[url('/card-front.png')] bg-cover bg-center opacity-40" />
+
             {/* Diamond pattern background (subtle) */}
             <div className="absolute inset-0 opacity-5">
               <svg className="h-full w-full" xmlns="http://www.w3.org/2000/svg">
@@ -313,6 +316,9 @@ const DareCard = React.memo(
             >
               {/* Decorative border */}
               <div className="pointer-events-none absolute inset-2 rounded-xl border-2 border-white/30" />
+
+              {/* Card back background image */}
+              <div className="absolute inset-0 bg-[url('/card-back.png')] bg-cover bg-center opacity-50 mix-blend-overlay" />
 
               {/* Diamond pattern background */}
               <div className="absolute inset-0 opacity-10">
