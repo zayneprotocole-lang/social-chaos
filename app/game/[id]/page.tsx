@@ -236,96 +236,51 @@ export default function GamePage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className={cn(
-        'pb-safe flex min-h-screen flex-col bg-gradient-to-b transition-colors duration-1000',
+        'flex h-screen flex-col overflow-hidden bg-gradient-to-b px-3 py-2 transition-colors duration-1000 min-[390px]:px-4 min-[390px]:py-3 min-[430px]:py-4',
         getBackgroundClass()
       )}
     >
-      {/* Options Menu - Top Right */}
-      <div className="fixed top-4 right-4 z-50">
-        <OptionsMenu
-          players={session.players}
-          currentTurnPlayerId={session.currentTurnPlayerId}
-          onTogglePause={handleTogglePause}
+      {/* Background Effects */}
+      <div className="pointer-events-none fixed inset-0 bg-[url('/grid.svg')] opacity-10" />
+
+      {/* 1. Zone joueurs + manche - HAUT */}
+      <div className="relative z-10 flex-none">
+        <GameSidebar
           session={session}
+          layout="horizontal"
+          isSwapping={isSwapping}
+          onPlayerClick={handlePlayerClick}
+          swapUsedByPlayerIds={session.swapUsedByPlayerIds}
         />
       </div>
 
-      {/* Game Sidebar - Replaces GameProgress, PlayerList, and TurnIndicator */}
-      <GameSidebar
-        session={session}
-        isSwapping={isSwapping}
-        onPlayerClick={handlePlayerClick}
-        swapUsedByPlayerIds={session.swapUsedByPlayerIds}
-      />
+      {/* 2. Timer - Sous les joueurs */}
+      {isCardRevealed && (session?.settings.difficulty || 1) >= 2 && (
+        <div className="relative z-30 mt-1 flex-none">
+          <GameTimer
+            key={`${session.turnCounter}-${timerResetTrigger}`}
+            duration={session.settings.timerDuration}
+            isActive={
+              isTimerActive && !isOnGoing && !isTimerPausedForAccompagnement
+            }
+            onComplete={handleTimerComplete}
+            isGolden={isOnGoing}
+          />
+        </div>
+      )}
 
-      {/* Main Game Area - Adjusted padding for desktop sidebar */}
-      <div className="relative flex flex-1 flex-col items-center justify-center space-y-6 p-4 pb-48 md:pr-72 md:pb-4">
-        {/* Background Effects */}
-        <div className="pointer-events-none absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-
-        {/* Timer - Only visible after card is revealed (for difficulty >= 2) */}
-        {isCardRevealed && (
-          <div className="relative z-10 w-full max-w-md">
-            {/* Abandon/Passer button - Always visible when playing */}
-            {gameStatus === 'PLAYING' && controlStep === 'ACTION' && (
-              <Button
-                onClick={handleAbandon}
-                variant={
-                  (session?.settings.difficulty || 1) === 1
-                    ? 'outline'
-                    : 'destructive'
-                }
-                size="sm"
-                className={cn(
-                  'absolute -top-12 right-0 px-3 py-1 text-xs',
-                  (session?.settings.difficulty || 1) === 1
-                    ? 'border-white/30 hover:border-white/50'
-                    : 'shadow-[0_0_10px_var(--destructive)]'
-                )}
-              >
-                <Skull className="mr-1 h-3 w-3" />
-                {(session?.settings.difficulty || 1) === 1
-                  ? 'PASSER'
-                  : 'ABANDON'}
-              </Button>
-            )}
-            {/* Timer only for difficulty >= 2 */}
-            {(session?.settings.difficulty || 1) >= 2 && (
-              <GameTimer
-                key={`${session.turnCounter}-${timerResetTrigger}`} // Force remount on turn change or invoke
-                duration={session.settings.timerDuration}
-                isActive={
-                  isTimerActive && !isOnGoing && !isTimerPausedForAccompagnement
-                }
-                onComplete={handleTimerComplete}
-                isGolden={isOnGoing}
-              />
-            )}
-          </div>
-        )}
-
-        {/* Current Player Indicator */}
-        {session.currentDare && (
-          <div className="z-30 mb-4 text-center">
-            <p className="text-lg font-bold text-white/90">
-              <span className="text-primary text-xl">{currentPlayer.name}</span>
-            </p>
-            <p className="animate-pulse text-sm text-white/60">
-              à toi de jouer !
-            </p>
-          </div>
-        )}
-
-        {/* The Card */}
-        <div className="perspective-1000 relative z-20 w-full">
+      {/* 3. Zone centrale - PREND L'ESPACE RESTANT */}
+      <div className="relative z-20 flex min-h-0 flex-1 flex-col items-center justify-center">
+        {/* Deck de cartes */}
+        <div className="deck-container w-full max-w-xs">
           {session.currentDare && (
             <DareCard dare={session.currentDare} isVisible={isCardRevealed} />
           )}
 
           {/* Accompagnement Active Indicator */}
           {isAccompagnementActive && accompagnateurName && (
-            <div className="mt-4 flex animate-pulse items-center justify-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3 text-indigo-400">
-              <span className="text-xl">🤝</span>
+            <div className="mt-2 flex animate-pulse items-center justify-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-1.5 text-xs text-indigo-400">
+              <span>🤝</span>
               <span className="font-bold">
                 Accompagné par {accompagnateurName}
               </span>
@@ -333,38 +288,83 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* Buttons Below Card */}
-        {gameStatus === 'PLAYING' && controlStep === 'ACTION' && (
+        {/* Start Button (Draw Card) - IDLE state */}
+        {gameStatus === 'IDLE' && (
+          <Button
+            onClick={startTurn}
+            className="z-30 mt-3 w-full max-w-xs animate-bounce py-5 text-lg font-black shadow-[0_0_30px_var(--primary)]"
+          >
+            TIRER UNE CARTE <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        )}
+      </div>
+
+      {/* 4. Zone de contrôle - FIXE EN BAS */}
+      {gameStatus === 'PLAYING' && controlStep === 'ACTION' && (
+        <div className="relative z-30 flex-none space-y-1.5 pb-1">
+          {/* Boutons validation - EN COURS + DÉFI VALIDÉ */}
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              onClick={() => setIsOnGoing(!isOnGoing)}
+              variant={isOnGoing ? 'default' : 'outline'}
+              size="sm"
+              className={cn(
+                'h-10 rounded-xl px-4 text-xs font-semibold transition-all min-[390px]:h-11 min-[390px]:px-5 min-[390px]:text-sm min-[430px]:h-12 min-[430px]:px-6',
+                isOnGoing
+                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                  : 'border-white/30 bg-white/5 text-white/80 hover:border-white/50 hover:bg-white/10'
+              )}
+            >
+              ⏳ EN COURS
+            </Button>
+            <Button
+              onClick={() => handleValidateChallenge(currentPlayer.id)}
+              className="h-10 rounded-xl bg-gradient-to-r from-purple-600 via-purple-500 to-violet-500 px-5 text-xs font-bold text-white shadow-lg shadow-purple-500/40 transition-all hover:scale-105 hover:shadow-purple-500/60 min-[390px]:h-11 min-[390px]:px-6 min-[390px]:text-sm min-[430px]:h-12 min-[430px]:px-8"
+            >
+              ✓ DÉFI VALIDÉ
+            </Button>
+          </div>
+
+          {/* Ligne secondaire : Abandon + Options */}
+          <div className="mt-1 flex items-center justify-center gap-4">
+            <button
+              onClick={handleAbandon}
+              className={cn(
+                'flex h-9 items-center gap-1.5 rounded-lg px-3 min-[390px]:h-10 min-[390px]:px-4',
+                'text-xs font-medium transition-all min-[390px]:text-sm',
+                'border border-red-500/30 bg-red-500/10 text-red-400',
+                'hover:border-red-500/50 hover:bg-red-500/20 hover:text-red-300'
+              )}
+            >
+              <Skull className="h-3.5 w-3.5 min-[390px]:h-4 min-[390px]:w-4" />
+              <span>Abandon</span>
+            </button>
+            <OptionsMenu
+              players={session.players}
+              currentTurnPlayerId={session.currentTurnPlayerId}
+              onTogglePause={handleTogglePause}
+              session={session}
+            />
+          </div>
+
+          {/* Éventail d'actions */}
           <ActionDock
-            session={session}
+            layout="fan"
             currentPlayer={currentPlayer}
-            isOnGoing={isOnGoing}
-            setIsOnGoing={setIsOnGoing}
-            onValidate={() => handleValidateChallenge(currentPlayer.id)}
             onJoker={handleJoker}
             onReroll={handleReroll}
             onSwap={handleSwap}
             accompagnementAvailable={!!accompagnementInfo}
             accompagnementUsed={accompagnementInfo?.used}
-            accompagnementTargetName={accompagnementInfo?.partnerName}
             onAccompagnement={handleAccompagnement}
             actionsDisabled={
               isAccompagnementModalOpen || isAccompagnementActive
             }
           />
-        )}
+        </div>
+      )}
 
-        {/* Start Button (Draw Card) */}
-        {gameStatus === 'IDLE' && (
-          <Button
-            onClick={startTurn}
-            className="z-30 w-full max-w-xs animate-bounce py-8 text-2xl font-black shadow-[0_0_30px_var(--primary)]"
-          >
-            TIRER UNE CARTE <ArrowRight className="ml-2 h-6 w-6" />
-          </Button>
-        )}
-      </div>
-
+      {/* Popups et Overlays */}
       <SuccessPopup
         isOpen={isSuccessPopupOpen}
         playerName={currentPlayer?.name}
@@ -378,7 +378,6 @@ export default function GamePage() {
         penaltyText={currentPenalty}
       />
 
-      {/* Abandon Confirmation Overlay */}
       <AbandonOverlay
         isOpen={isAbandonConfirmOpen}
         onCancel={cancelAbandon}
@@ -386,7 +385,6 @@ export default function GamePage() {
         penaltyText={currentPenalty}
       />
 
-      {/* Accompagnement Modal */}
       {accompagnementInfo && (
         <AccompagnementModal
           isOpen={isAccompagnementModalOpen}

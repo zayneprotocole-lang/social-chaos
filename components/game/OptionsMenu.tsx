@@ -64,29 +64,25 @@ export default function OptionsMenu({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className="bg-background/80 border-white/20 backdrop-blur-sm"
-        >
-          <Settings className="h-5 w-5" />
-        </Button>
+        <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-white/5 text-white/60 transition-all hover:border-white/40 hover:bg-white/10 hover:text-white min-[390px]:h-10 min-[390px]:w-10">
+          <Settings className="h-4 w-4 min-[390px]:h-5 min-[390px]:w-5" />
+        </button>
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="border-primary/20 w-[300px] border-l bg-black/90 text-white sm:w-[400px]"
+        className="w-[300px] border-l border-white/10 bg-black/80 text-white backdrop-blur-xl sm:w-[400px]"
       >
         <SheetHeader>
-          <SheetTitle className="text-primary flex items-center gap-2 font-black tracking-widest uppercase">
+          <SheetTitle className="flex items-center gap-2 font-black tracking-widest text-purple-400 uppercase">
             <Settings className="h-5 w-5" /> Options
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-8 h-full space-y-8 overflow-y-auto pb-10">
+        <div className="mt-8 h-full space-y-6 overflow-y-auto pb-10">
           {/* Volume Control */}
-          <div className="space-y-4">
-            <Label className="flex items-center gap-2 text-white">
-              <Volume2 className="h-4 w-4" />
+          <div className="space-y-4 rounded-xl border border-white/10 bg-white/5 p-4">
+            <Label className="flex items-center gap-2 font-medium text-white">
+              <Volume2 className="h-4 w-4 text-purple-400" />
               Volume
             </Label>
             <Slider
@@ -96,12 +92,12 @@ export default function OptionsMenu({
               step={1}
               className="w-full"
             />
-            <p className="text-muted-foreground text-xs">{volume[0]}%</p>
+            <p className="text-xs text-white/50">{volume[0]}%</p>
           </div>
 
           {/* Player Management (Pause) */}
           {players && onTogglePause && (
-            <div className="border-t border-white/10 pt-4">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <PausePlayerManager
                 players={players}
                 currentTurnPlayerId={currentTurnPlayerId}
@@ -112,29 +108,25 @@ export default function OptionsMenu({
 
           {/* Save and Quit Button */}
           {session && (
-            <div className="border-t border-white/10 pt-4">
-              <Button
-                onClick={handleSaveAndQuit}
-                variant="secondary"
-                className="flex w-full items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700"
-              >
-                <Save className="h-4 w-4" />
-                Sauvegarder et quitter
-              </Button>
-            </div>
+            <Button
+              onClick={handleSaveAndQuit}
+              variant="secondary"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 font-semibold text-white shadow-lg shadow-indigo-500/20 hover:from-indigo-500 hover:to-blue-500"
+            >
+              <Save className="h-5 w-5" />
+              Sauvegarder et quitter
+            </Button>
           )}
 
           {/* End Game Button */}
-          <div className="border-t border-white/10 pt-4">
-            <Button
-              onClick={handleEndGame}
-              variant="destructive"
-              className="flex w-full items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Terminer la Partie
-            </Button>
-          </div>
+          <Button
+            onClick={handleEndGame}
+            variant="destructive"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 font-semibold text-white shadow-lg shadow-red-500/20 hover:from-red-500 hover:to-red-400"
+          >
+            <LogOut className="h-5 w-5" />
+            Terminer la Partie
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

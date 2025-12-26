@@ -4,78 +4,120 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface GameTimerProps {
-    duration: number // Total duration in seconds
-    onComplete: () => void
-    isActive: boolean
-    isGolden?: boolean // V9.1: Golden mode when timer is paused
+  duration: number // Total duration in seconds
+  onComplete: () => void
+  isActive: boolean
+  isGolden?: boolean // V9.1: Golden mode when timer is paused
 }
 
 export default function GameTimer({
-    duration,
-    onComplete,
-    isActive,
-    isGolden = false,
+  duration,
+  onComplete,
+  isActive,
+  isGolden = false,
 }: GameTimerProps) {
-    const [progress, setProgress] = useState(100)
+  const [progress, setProgress] = useState(100)
 
-    // Timer countdown logic with pause support
-    useEffect(() => {
-        if (duration <= 0) {
-            return
+  // Timer countdown logic with pause support
+  useEffect(() => {
+    if (duration <= 0) {
+      return
+    }
+
+    if (!isActive) {
+      // Paused - keep current progress
+      return
+    }
+
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        const decrementPerTick = 100 / (duration * 10) // 100ms interval = 10 ticks per second
+        const newProgress = prev - decrementPerTick
+
+        if (newProgress <= 0) {
+          clearInterval(interval)
+          onComplete()
+          return 0
         }
+        return newProgress
+      })
+    }, 100)
 
-        if (!isActive) {
-            // Paused - keep current progress
-            return
-        }
+    return () => clearInterval(interval)
+  }, [isActive, duration, onComplete])
 
-        const interval = setInterval(() => {
-            setProgress((prev) => {
-                const decrementPerTick = 100 / (duration * 10) // 100ms interval = 10 ticks per second
-                const newProgress = prev - decrementPerTick
+  if (duration <= 0) return null
 
-                if (newProgress <= 0) {
-                    clearInterval(interval)
-                    onComplete()
-                    return 0
-                }
-                return newProgress
-            })
-        }, 100)
+  const remainingSeconds = Math.ceil((progress / 100) * duration)
+  const progressPercent = progress
 
-        return () => clearInterval(interval)
-    }, [isActive, duration, onComplete])
+  // 3-stage color system based on progress
+  const getColors = () => {
+    if (isGolden) {
+      return {
+        bar: 'bg-amber-500 shadow-amber-500/50',
+        text: 'text-amber-400',
+        border: 'border-amber-500/30',
+      }
+    }
+    if (progressPercent < 20) {
+      // Critical - Red with pulse
+      return {
+        bar: 'bg-red-500 shadow-red-500/50',
+        text: 'text-red-500 animate-pulse',
+        border: 'border-red-500/30',
+      }
+    }
+    if (progressPercent < 50) {
+      // Warning - Orange/Amber
+      return {
+        bar: 'bg-orange-500 shadow-orange-500/50',
+        text: 'text-orange-400',
+        border: 'border-orange-500/30',
+      }
+    }
+    // Comfortable - Cyan/Primary
+    return {
+      bar: 'bg-cyan-500 shadow-cyan-500/50',
+      text: 'text-cyan-400',
+      border: 'border-cyan-500/30',
+    }
+  }
 
-    if (duration <= 0) return null
+  const colors = getColors()
 
-    const remainingSeconds = Math.ceil((progress / 100) * duration)
-    const progressPercent = progress
+  return (
+    <div className="flex flex-col items-center space-y-1">
+      {/* Secondes restantes - Responsive */}
+      <p
+        className={cn(
+          'text-center font-mono font-bold tabular-nums',
+          'text-xl min-[390px]:text-2xl min-[430px]:text-3xl',
+          'drop-shadow-[0_0_8px_currentColor]',
+          colors.text
+        )}
+      >
+        {remainingSeconds}s
+      </p>
 
-    // V9.1: Golden color when "En Cours" mode is active (paused)
-    const barColor = isGolden
-        ? 'bg-yellow-500 shadow-yellow-500'
-        : progressPercent < 30 ? 'bg-red-500 shadow-red-500' : 'bg-primary shadow-primary'
-    const textColor = isGolden
-        ? 'text-yellow-500'
-        : progressPercent < 30 ? 'text-red-500 animate-pulse' : 'text-white'
-
-    return (
-        <div className="w-full space-y-2">
-            <div className="relative h-2 w-full bg-black/50 rounded-full overflow-hidden border border-white/20">
-                <div
-                    className={cn(
-                        "h-full transition-all duration-100 ease-linear shadow-[0_0_10px_currentColor]",
-                        barColor
-                    )}
-                    style={{ width: `${progressPercent}%` }}
-                />
-            </div>
-            <p className={cn(
-                "text-center font-mono font-bold text-4xl tabular-nums drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]",
-                textColor
-            )}>
-                {remainingSeconds} secondes
-            </p>
-        </div>
-    )
+      {/* Barre de progression - Responsive */}
+      <div
+        className={cn(
+          'relative h-1.5 overflow-hidden rounded-full min-[390px]:h-2',
+          'w-40 min-[390px]:w-48 min-[430px]:w-56',
+          'border bg-black/40',
+          colors.border
+        )}
+      >
+        <div
+          className={cn(
+            'h-full transition-all duration-100 ease-linear',
+            'shadow-[0_0_8px_currentColor]',
+            colors.bar
+          )}
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+    </div>
+  )
 }

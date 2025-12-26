@@ -2,7 +2,7 @@
 
 > **Design System officiel** - À consulter pour toute création UI
 >
-> 📅 **Dernière MAJ** : 19 décembre 2024  
+> 📅 **Dernière MAJ** : 23 décembre 2024  
 > 📍 **Références** : [`_PROJECT_KNOWLEDGE.md`](../_PROJECT_KNOWLEDGE.md) | [`0_PROJECT_QUICK_REF.md`](../0_PROJECT_QUICK_REF.md)
 
 ---
@@ -273,19 +273,113 @@ text-shadow:
 </Link>
 ```
 
-### Header
+### Header Principal
+
+**Structure** : Paramètres (gauche) + Premium (droite)
 
 ```tsx
-<header className="
-  glass-strong
-  fixed top-0 left-0 right-0
-  z-50
-  px-4 py-3
-  rounded-2xl
-">
-  <!-- Contenu: Settings (gauche), Premium (droite) -->
+<header className="fixed top-0 right-0 left-0 z-50 px-4 py-3">
+  <div className="glass-strong flex items-center justify-between rounded-2xl px-4 py-3">
+    {/* Bouton Paramètres - Gauche */}
+    <Link
+      href="/settings"
+      className="rounded-full p-3 transition-all hover:scale-105 hover:bg-white/15"
+    >
+      <Settings className="h-7 w-7 text-white" />
+    </Link>
+
+    {/* Spacer */}
+    <div className="flex-1" />
+
+    {/* Bouton Premium - Droite */}
+    <Link
+      href="/premium"
+      className="glow-gold flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 transition-all hover:scale-105 hover:from-amber-400 hover:to-yellow-400"
+    >
+      <Crown className="h-5 w-5 text-black" />
+      <span className="text-sm font-bold tracking-wide text-black">
+        PREMIUM
+      </span>
+    </Link>
+  </div>
 </header>
 ```
+
+#### Bouton Premium (détails)
+
+| Propriété | Valeur                                                         |
+| --------- | -------------------------------------------------------------- |
+| Fond      | `bg-gradient-to-r from-amber-500 to-yellow-500`                |
+| Texte     | `text-black font-bold text-sm tracking-wide`                   |
+| Forme     | `rounded-full`                                                 |
+| Glow      | `.glow-gold` → `box-shadow: 0 0 25px rgba(245, 158, 11, 0.35)` |
+| Hover     | `scale-105` + couleurs plus claires                            |
+
+> **Note historique** : Le menu hamburger a été supprimé (19/12/2024).
+>
+> - Profils, Bibliothèque, Historique → Cartes sur l'accueil
+> - Règles, CGU, Mises à jour → Page Paramètres (/settings)
+
+### Composants Lobby
+
+#### Catégories - États Actif/Inactif
+
+**Contrainte** : Minimum **3 catégories** sélectionnées pour lancer une partie (`MIN_CATEGORIES_REQUIRED`).
+
+| État    | Classes                                        |
+| ------- | ---------------------------------------------- |
+| Inactif | `opacity-50`, fond transparent, bordure légère |
+| Actif   | Couleur vive avec glow, opacité pleine         |
+
+```tsx
+// État inactif
+;`${CATEGORY_BG_COLORS[cat.id]} border-transparent opacity-50 hover:opacity-75`
+
+// État actif
+CATEGORY_SELECTED_COLORS[cat.id] // ex: 'bg-purple-500/55 border-2 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.4)]'
+```
+
+#### Mode Alcool Toggle (Refonte)
+
+**Structure carte** :
+
+- Icône dynamique : 🍺 (ON) / ☕ (OFF)
+- Titre : "Mode Alcool" ou "Mode Sans Alcool"
+- Description : "Pénalités = gorgées" ou "Pénalités = vérités"
+- Toggle Switch visuel
+
+| Mode | Accent                    | Glow                      |
+| ---- | ------------------------- | ------------------------- |
+| ON   | `amber-500`, `orange-500` | `rgba(245, 158, 11, 0.2)` |
+| OFF  | `cyan-500`, `teal-500`    | `rgba(6, 182, 212, 0.1)`  |
+
+```tsx
+<div className={`cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 ${
+  alcoolMode
+    ? 'border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20'
+    : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-cyan-500/10'
+}`}>
+```
+
+#### Mode Maison (Indoor)
+
+**Catégories fixes** pour le mode intérieur :
+
+| Tag      | Description                   |
+| -------- | ----------------------------- |
+| Maison   | Gages adaptés à l'appartement |
+| Vérité   | Secrets et aveux              |
+| Physique | Contacts et défis             |
+| Réseaux  | Téléphone et réseaux sociaux  |
+| Fun      | Ambiance légère               |
+
+**Difficultés Indoor** :
+
+| Niveau | Nom      | Couleur      | Description           |
+| ------ | -------- | ------------ | --------------------- |
+| 1      | Chill 🧊 | `green-400`  | Anecdotes et fun      |
+| 2      | Spicy 🌶️ | `pink-500`   | Tension et séduction  |
+| 3      | Chaos 💀 | `purple-600` | Téléphones et secrets |
 
 ---
 
@@ -294,8 +388,8 @@ text-shadow:
 ### Page Standard (Homepage, Auth)
 
 ```tsx
-<main className="// Espace pour header fixe flex min-h-screen flex-col px-4 pt-28 pb-8">
-  {/* Contenu */}
+<main className="flex min-h-screen flex-col px-4 pt-28 pb-8">
+  {/* Contenu - pt-28 pour header fixe */}
 </main>
 ```
 
@@ -303,23 +397,16 @@ text-shadow:
 
 ```tsx
 <>
-  <header className="glass-strong sticky top-0 z-50">
-    {/* Header avec retour */}
+  <header className="glass-strong sticky top-0 z-50 flex items-center gap-4 rounded-none border-x-0 border-t-0 px-4 py-4">
+    {/* Bouton retour + titre */}
   </header>
 
   <main className="space-y-2.5 px-4 pt-4 pb-2">
-    <LobbySection icon="👥" title="Joueurs">
-      {/* ... */}
-    </LobbySection>
-    <LobbySection icon="⚙️" title="Options">
-      {/* ... */}
-    </LobbySection>
-    <LobbySection icon="🎯" title="Catégories">
-      {/* ... */}
-    </LobbySection>
-    <LobbySection icon="⚡" title="Difficulté">
-      {/* ... */}
-    </LobbySection>
+    <LobbySection icon="👥" title="Joueurs" />
+    <LobbySection icon="⚙️" title="Options" />
+    <LobbySection icon="🎯" title="Catégories" />{' '}
+    {/* ou 🏠 Mode Maison pour Indoor */}
+    <LobbySection icon="⚡" title="Difficulté" />
   </main>
 
   <div className="px-4 pt-3 pb-8">{/* Bouton Démarrer */}</div>
@@ -428,12 +515,15 @@ Avant de créer un nouveau composant, vérifier:
 
 ## 📚 Fichiers de Référence
 
-| Fichier                                                                   | Contenu                              |
-| ------------------------------------------------------------------------- | ------------------------------------ |
-| [`app/globals.css`](../app/globals.css)                                   | Variables CSS, glassmorphism, glows  |
-| [`app/page.tsx`](../app/page.tsx)                                         | Homepage - Logo, CTA, Quick Access   |
-| [`app/lobby/[code]/page.tsx`](../app/lobby/[code]/page.tsx)               | Lobby - Catégories, Options, Joueurs |
-| [`components/navigation/Header.tsx`](../components/navigation/Header.tsx) | Header avec Settings et Premium      |
+| Fichier                                                                               | Contenu                                |
+| ------------------------------------------------------------------------------------- | -------------------------------------- |
+| [`app/globals.css`](../app/globals.css)                                               | Variables CSS, glassmorphism, glows    |
+| [`app/page.tsx`](../app/page.tsx)                                                     | Homepage - Logo, CTA, Quick Access     |
+| [`app/lobby/[code]/page.tsx`](../app/lobby/[code]/page.tsx)                           | Lobby - Catégories, Options, Joueurs   |
+| [`components/navigation/Header.tsx`](../components/navigation/Header.tsx)             | Header avec Settings et bouton Premium |
+| [`components/lobby/AlcoholModeToggle.tsx`](../components/lobby/AlcoholModeToggle.tsx) | Toggle mode alcool refonte             |
+| [`components/lobby/CategorySelector.tsx`](../components/lobby/CategorySelector.tsx)   | Sélecteur de catégories                |
+| [`lib/constants/categories.ts`](../lib/constants/categories.ts)                       | Constantes catégories et styling       |
 
 ---
 

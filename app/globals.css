@@ -219,3 +219,125 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ============================================
+   CARD GAME EFFECTS
+   ============================================ */
+
+/* Fan effect - cartes en éventail */
+.fan-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: -20px; /* Cartes qui se chevauchent */
+  perspective: 800px;
+}
+
+.fan-card {
+  transform-origin: bottom center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.fan-card:hover {
+  transform: translateY(-15px) scale(1.08);
+  z-index: 10;
+}
+
+.fan-card.selected {
+  transform: translateY(-30px) scale(1.15);
+  z-index: 20;
+  filter: brightness(1.2);
+}
+
+.fan-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.fan-card.disabled:hover {
+  transform: none;
+}
+
+/* Rotation pour chaque carte de l'éventail (4 cartes) */
+.fan-card:nth-child(1) {
+  transform: rotate(-12deg);
+}
+.fan-card:nth-child(2) {
+  transform: rotate(-4deg);
+}
+.fan-card:nth-child(3) {
+  transform: rotate(4deg);
+}
+.fan-card:nth-child(4) {
+  transform: rotate(12deg);
+}
+
+.fan-card:nth-child(1):hover {
+  transform: rotate(-12deg) translateY(-15px) scale(1.08);
+}
+.fan-card:nth-child(2):hover {
+  transform: rotate(-4deg) translateY(-15px) scale(1.08);
+}
+.fan-card:nth-child(3):hover {
+  transform: rotate(4deg) translateY(-15px) scale(1.08);
+}
+.fan-card:nth-child(4):hover {
+  transform: rotate(12deg) translateY(-15px) scale(1.08);
+}
+
+/* Deck stack effect - pile de cartes */
+.deck-container {
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.deck-card {
+  position: absolute;
+  transition:
+    transform 0.4s ease,
+    box-shadow 0.3s ease;
+}
+
+.deck-card:nth-child(1) {
+  transform: translateZ(0) translateY(0);
+  z-index: 3;
+}
+.deck-card:nth-child(2) {
+  transform: translateZ(-4px) translateY(4px) translateX(2px);
+  z-index: 2;
+}
+.deck-card:nth-child(3) {
+  transform: translateZ(-8px) translateY(8px) translateX(4px);
+  z-index: 1;
+}
+
+/* Glow effect for cards */
+.card-glow-cyan {
+  box-shadow:
+    0 0 20px rgba(6, 182, 212, 0.4),
+    0 0 40px rgba(6, 182, 212, 0.2);
+}
+.card-glow-purple {
+  box-shadow:
+    0 0 20px rgba(168, 85, 247, 0.4),
+    0 0 40px rgba(168, 85, 247, 0.2);
+}
+.card-glow-orange {
+  box-shadow:
+    0 0 20px rgba(249, 115, 22, 0.4),
+    0 0 40px rgba(249, 115, 22, 0.2);
+}
+
+/* Card gradients by difficulty */
+.card-gradient-1 {
+  background: linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%);
+}
+.card-gradient-2 {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+}
+.card-gradient-3 {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+}
