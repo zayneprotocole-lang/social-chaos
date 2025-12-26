@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dare } from '@/lib/types'
-import { DIFFICULTY_CONFIG } from '@/lib/constants/config'
 import { Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
